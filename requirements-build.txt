@@ -1,0 +1,2 @@
+# Build dependency only; runtime uses the Python standard library.
+PyInstaller==6.22.3
