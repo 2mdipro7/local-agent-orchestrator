@@ -166,7 +166,7 @@ class App(ttk.Frame):
         credit.pack(anchor="w", pady=(12, 0))
         ttk.Label(credit, text="Created by Mehrab Mashrafi (@2mdipro7) · ", style="Muted.TLabel").pack(side="left")
         for label, url in (("GitHub", "https://github.com/2mdipro7"),
-                           ("Portfolio", "https://2mdipro7.github.io/portfolio/")):
+                           ("Portfolio", "https://2mdipro7.github.io/")):
             link = tk.Label(credit, text=label, foreground="#285cc4", background="#f4f6fa", cursor="hand2", font=("Segoe UI", 10, "underline"))
             link.pack(side="left", padx=(0, 10))
             link.bind("<Button-1>", lambda _event, target=url: webbrowser.open(target))

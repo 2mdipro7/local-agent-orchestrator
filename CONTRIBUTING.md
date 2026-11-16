@@ -1,6 +1,6 @@
 # Contributing
 
-Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/portfolio/).
+Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
 Use Python 3.12 on Windows. Follow README.md to run tests and build. Open an issue with a small reproducible example before proposing a major provider or permission change. Pull requests should explain the user-visible behavior, relevant tests and limits. Keep contributions under the repository's MIT license.
 

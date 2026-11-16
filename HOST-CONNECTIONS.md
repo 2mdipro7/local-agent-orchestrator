@@ -30,4 +30,4 @@ You are the lead. Discover models first, inspect capabilities and choose the exa
 
 Inspect actual results and source facts, verify material claims and each criterion, check scope/data handling/side effects, and record accepted/revision_required/rejected with evidence. A successful task is not approval. Do not self-approve from a worker, claim unperformed tests, silently switch billing routes, or retry an uncertain external job without checking its state. The same protocol can be used by any compatible local MCP lead; web-only services need a supported local bridge.
 
-Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/portfolio/).
+Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).

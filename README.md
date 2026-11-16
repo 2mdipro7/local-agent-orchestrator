@@ -1,6 +1,6 @@
 # Local Agent Orchestrator — Version 0
 
-**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/portfolio/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.0.0) · [MIT license](LICENSE)
+**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.0.0) · [MIT license](LICENSE)
 
 A per-user Windows coordinator that lets a compatible MCP host act as the lead and delegate bounded tasks to configured model providers. This preview has no public server, telemetry, automatic model download, startup service, or bundled credentials/model weights. It does not replace a model subscription.
 
@@ -85,6 +85,6 @@ Version 0 installs separately from the earlier Local Agent Hub preview. Existing
 
 ## Creator
 
-[Mehrab Mashrafi](https://github.com/2mdipro7) · [GitHub @2mdipro7](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/portfolio/).
+[Mehrab Mashrafi](https://github.com/2mdipro7) · [GitHub @2mdipro7](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
 This is an independent community project; provider names identify integrations, not endorsement.
