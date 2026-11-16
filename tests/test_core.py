@@ -48,7 +48,9 @@ class FakeProvider:
 class HubTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self.tmp.name)
+        # Windows CI can expose TEMP through an 8.3 alias (for example RUNNER~1).
+        # Match submit_task's canonical workspace before testing the reader itself.
+        self.root = Path(self.tmp.name).resolve()
         self.workspace = self.root / "project"
         self.workspace.mkdir()
         self.hub = Hub(self.root / "data", provider_factory=FakeProvider)
