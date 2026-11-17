@@ -2,6 +2,13 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.2.3 — 2026-11-17
+
+- Models now offers a response test and a green tick for a successful test with current saved settings. Untested, running, failed and unavailable states remain distinct, with details for the selected model.
+- Test evidence persists across restarts. Settings changes, saved credential changes and later failed tasks invalidate it. Cloud tests ask before using an account; workers keep the same tool restrictions and review requirements.
+- Rewrote the README around installation and everyday use. Build instructions and validation history live in their dedicated documents.
+- Bundled documentation includes the architecture banner and linked setup, security and development guides.
+
 ## 0.2.2 — 2026-11-17
 
 - Default installer setup now includes Claude Desktop, Claude Code, Codex and Antigravity, including missing first-profile MCP configurations. Existing settings, backups and conflicting entries are handled explicitly.

@@ -36,12 +36,14 @@ def install_to(destination=None, *, payload_app=None, payload_worker=None, regis
             temporary = target / (filename + ".new")
             shutil.copy2(source, temporary)
             os.replace(temporary, destination_file)
-    for filename in ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt"):
+    for filename in ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "assets/README.md", "assets/architecture-banner.png"):
         document = resource / "resources" / filename
         if not document.is_file():
             document = resource / filename
         if document.is_file():
-            shutil.copy2(document, target / filename)
+            installed_document = target / filename
+            installed_document.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(document, installed_document)
     if register:
         if os.name != "nt" or target != install_dir():
             raise ValueError("Registered installation must use the current user's application directory")

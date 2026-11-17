@@ -2,7 +2,15 @@
 
 [Local Agent Orchestrator](https://github.com/2mdipro7/local-agent-orchestrator) · Created by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Last updated: 17 November 2026 (Asia/Dhaka). Current release: 0.2.2. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the 0.2.x results.
+Last updated: 17 November 2026 (Asia/Dhaka). Current release: 0.2.3. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the 0.2.x results.
+
+## Version 0.2.3 model checks (17 November 2026)
+
+The full source suite ran 75 tests: 74 passed and one source-symlink race check was skipped because this Windows user cannot create the required test link. New checks cover persistence, saved-setting and credential-file changes, later task failure, duplicate active tests, exact response matching, cloud confirmation, batched status reads and completion timestamps surviving lead review. Displaying saved status does not probe providers or resolve CLI executables.
+
+A native GUI check selected the discovered `claude-haiku-5-5` entry, displayed the account-use confirmation and submitted a synthetic 881-character prompt with no attachments. The provider returned exactly `LAO_MODEL_CHECK=42` and reported `claude-haiku-5-5`. The row visibly showed a green tick; the other two discovered Claude entries stayed untested. A fresh Hub instance read the same saved test result, and independent lead review did not change its completion time. The worker result stayed pending until that separate review.
+
+This verifies one real response and the status controls on the maintainer's PC. It does not certify every discovered model, quota, external CLI account state or another physical PC. Existing cross-provider route checks below retain their original release versions; no new six-route claim is made for this UI change.
 
 ## Version 0.2.2 setup checks — 17 November 2026
 

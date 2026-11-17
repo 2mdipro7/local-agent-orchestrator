@@ -2,7 +2,7 @@
 
 ## One-time Claude, Codex and Antigravity setup
 
-The 0.2.2 installer configures **Claude Desktop, Claude Code, Codex and Antigravity** by default. Keep **Configure Claude Desktop, Claude Code, Codex and Antigravity** checked. Missing configuration files are created, so an empty profile is not silently skipped. The completion dialog reports each host's outcome. In the app, **Connections → Connect** performs the same setup for a selected host.
+The 0.2.3 installer configures **Claude Desktop, Claude Code, Codex and Antigravity** by default. Keep **Configure Claude Desktop, Claude Code, Codex and Antigravity** checked. Missing configuration files are created, so an empty profile is not silently skipped. The completion dialog reports each host's outcome. In the app, **Connections → Connect** performs the same setup for a selected host.
 
 | Host | Configuration written for the current Windows user |
 |---|---|
@@ -13,7 +13,7 @@ The 0.2.2 installer configures **Claude Desktop, Claude Code, Codex and Antigrav
 
 Close hosts before setup to avoid concurrent settings writes. Existing JSON settings are preserved; Codex TOML text and comments remain byte-for-byte before the appended entry. Existing files receive adjacent original-byte backups; repeat setup with the same entry makes no new backup. A conflicting, malformed or linked configuration is left unchanged and reported. New files are installed without overwriting a file created concurrently. Existing-file replacement checks for observed concurrent changes but cannot lock every host writer.
 
-Fully quit and reopen the hosts after setup. Ask each lead to call `hub_status` and check version `0.2.2`, then call `list_models`. Configuration alone is not a successful handshake. If an app installed later creates or migrates its own profile, rerun setup or use Connections. Empty-profile tests are automated; a separate clean customer PC has not been certified.
+Fully quit and reopen the hosts after setup. Ask each lead to call `hub_status` and check version `0.2.3`, then call `list_models`. Configuration alone is not a successful handshake. If an app installed later creates or migrates its own profile, rerun setup or use Connections. Empty-profile tests are automated; a separate clean customer PC has not been certified.
 
 Host approval policies still apply. On this PC a fresh Codex CLI session initially returned **“MCP tool call requires approval, but approval policy is never”** before calls reached the server. Registration does not grant tool approval. After a specific owner grant, temporary per-process approval for six verification tools allowed native Codex delegation to both Claude and Antigravity; the process exited with saved global settings unchanged. If this denial occurs, stop the affected operation and have the owner explicitly approve the needed tool scope through their normal host controls. Do not automatically broaden global permissions or switch routes after a denial. The installer deliberately does not change approval policies.
 
@@ -60,7 +60,7 @@ mcp_servers:
 
 [Hermes MCP documentation](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/mcp.md) describes configured-server tool discovery. This project follows the same distinction: connecting the lead to MCP and making a model callable are separate steps. There is no automatic access to every installed subscription. Hermes itself is not a tested worker adapter here.
 
-Claude Desktop 5.11492.5 and standalone Antigravity desktop 2.32.1 each delegated to both other workers through installed MCP 0.2.2 on 2026-11-17. A native Codex CLI lead also delegated to Claude and Antigravity through 0.2.2 after the owner approved a temporary six-tool scope. Claude Code/Antigravity CLI lead routes passed in earlier checks. The running Codex desktop session was not restarted or separately verified. See [the exact route matrix](README.md#verified-lead--worker-routes) and [validation history](TEST-RESULTS.md). This does not certify every version or customer installation. ChatGPT web needs a supported local bridge; it cannot directly launch a local stdio executable.
+Claude Desktop 5.11492.5 and standalone Antigravity desktop 2.32.1 each delegated to both other workers through installed MCP 0.2.2 on 2026-11-17. A native Codex CLI lead also delegated to Claude and Antigravity through 0.2.2 after the owner approved a temporary six-tool scope. Claude Code/Antigravity CLI lead routes passed in earlier checks. The running Codex desktop session was not restarted or separately verified. See [the route evidence and validation history](TEST-RESULTS.md). This does not certify every version or customer installation. ChatGPT web needs a supported local bridge; it cannot directly launch a local stdio executable.
 
 ## Bidirectional capability limits
 

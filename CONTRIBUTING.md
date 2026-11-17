@@ -2,7 +2,28 @@
 
 Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Use Python 3.12 on Windows. Follow README.md to run tests and build. Open an issue with a small reproducible example before proposing a major provider or permission change. Pull requests should explain the user-visible behavior, relevant tests and limits. Keep contributions under the repository's MIT license.
+Use Python 3.12 on Windows x64, with Tcl/Tk from the standard Windows Python installer. The app uses Python's standard library; provider tools are separate installations.
+
+```powershell
+git clone https://github.com/2mdipro7/local-agent-orchestrator.git
+cd local-agent-orchestrator
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe app_entry.py
+```
+
+Run checks and build the Windows package:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m pip install -r requirements-build.txt
+.\.venv\Scripts\python.exe build_windows.py
+.\.venv\Scripts\python.exe smoke_windows.py
+.\.venv\Scripts\python.exe package_release.py
+```
+
+`dist/` contains the app and MCP executables. `release/` contains the setup executable, portable ZIP and checksums. The smoke check uses a disposable profile and makes no inference requests. Use `mcp_entry.py` with the virtual environment interpreter for a source MCP connection.
+
+Open an issue with a small reproducible example before proposing a major provider or permission change. Pull requests should explain the user-visible behavior, relevant tests and limits. Keep contributions under the repository's MIT license.
 
 Never commit API keys, local settings, job histories, prompts from real customer work, model weights or generated executables. Use synthetic fixtures and mocked provider calls in tests. Real paid-provider checks require your own explicit authorization and credentials; automated CI must not make such calls.
 

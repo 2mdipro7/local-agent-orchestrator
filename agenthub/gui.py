@@ -15,6 +15,9 @@ import webbrowser
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from . import __version__
+from .core import local_url
+
 
 PROVIDER_LABELS = {
     "ollama": "Ollama", "lmstudio": "LM Studio",
@@ -47,8 +50,10 @@ class App(ttk.Frame):
         self.review_fields = []
         self._closed = False
         self._timer = None
+        self._model_refresh_signature = None
+        self._model_status_snapshot = {}
         self._setup_style()
-        self.root.title("Local Agent Orchestrator · Version 0")
+        self.root.title(f"Local Agent Orchestrator · {__version__}")
         self.root.geometry("1180x880")
         self.root.minsize(940, 730)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
@@ -156,7 +161,7 @@ class App(ttk.Frame):
             self._put(self.hardware_box, self._hardware_text(hardware))
         except Exception:
             self._put(self.hardware_box, "Hardware details could not be read on this computer.")
-        ttk.Label(page, text="Version 0 · Open-source preview", style="Section.TLabel").pack(anchor="w", pady=(8, 5))
+        ttk.Label(page, text=f"Version {__version__} · Open-source preview", style="Section.TLabel").pack(anchor="w", pady=(8, 5))
         ttk.Label(page, wraplength=980, justify="left", style="Muted.TLabel", text=(
             "The Orchestrator has no telemetry or public listener. Local providers keep work local when configured that way. "
             "Cloud APIs and subscription tools send task data to their provider and may use your account allowance or incur charges. "
@@ -195,9 +200,15 @@ class App(ttk.Frame):
         page = self.pages["Models"]
         self._heading(page, "Available models", "Only provider discovery results appear here. Refresh after changing settings or starting a local model server.")
         self.refresh_button = ttk.Button(page, text="Refresh models", command=self.refresh_models)
-        self.refresh_button.pack(anchor="w", pady=(0, 12))
+        self.refresh_button.pack(anchor="w", pady=(0, 4))
+        self.test_button = ttk.Button(page, text="Test selected model", command=self._test_selected_model)
+        self.test_button.pack(anchor="w", pady=(0, 12))
         self.model_tree = self._tree(page, [("provider", "Provider", 170), ("model", "Model", 440),
-                                             ("modality", "Modality", 140), ("status", "Status", 160)])
+                                             ("modality", "Modality", 140), ("status", "Last response test", 240)])
+        self.model_tree.tag_configure("tested", foreground="#087c32")
+        self.model_tree.bind("<<TreeviewSelect>>", self._model_selected)
+        self.model_detail = tk.StringVar(value="Select a model to see its last response test.")
+        ttk.Label(page, textvariable=self.model_detail, wraplength=1000).pack(anchor="w", pady=(8, 0))
         self.discovery_note = tk.StringVar(value="No discovery has run yet.")
         ttk.Label(page, textvariable=self.discovery_note, style="Muted.TLabel", wraplength=1000).pack(anchor="w", pady=10)
 
@@ -414,37 +425,114 @@ class App(ttk.Frame):
                     self.discovery_done = True
                     self._display_models()
                 else:
+                    self.models = []
+                    self._display_models(update_summary=False)
                     self.discovery_note.set("Model discovery did not finish. Check provider settings and try again.")
                     self.status.set("Could not refresh available models.")
         except queue.Empty:
             pass
-        self._refresh_tasks(quiet=True)
+        tasks = self._refresh_tasks(quiet=True)
+        if self.discovery_done and tasks is not None:
+            try:
+                credential_stat = self.hub.secrets.path.stat()
+                credential_revision = (credential_stat.st_mtime_ns, credential_stat.st_size)
+            except FileNotFoundError:
+                credential_revision = None
+            signature = (tuple((t["id"], t.get("updated_at")) for t in tasks),
+                         json.dumps(self.hub.config["providers"], sort_keys=True), credential_revision)
+            if signature != self._model_refresh_signature:
+                self._model_refresh_signature = signature
+                self._display_models(update_summary=False)
         self._timer = self.root.after(1100, self._poll)
 
     @staticmethod
     def _model_id(model):
         return str(model.get("id") or model.get("model") or model.get("name") or "")
 
-    def _display_models(self):
+    def _model_status(self, model):
+        provider, mid = model.get("provider", ""), self._model_id(model)
+        if model.get("status") in ("unavailable", "discovery_only") or not mid:
+            return {"state": "unavailable", "reason": model.get("reason") or "Unavailable for text testing; check provider setup."}
+        modality = model.get("modality", model.get("modalities", "text"))
+        if isinstance(modality, list):
+            modality = ", ".join(str(x) for x in modality)
+        if "text" not in str(modality).lower():
+            return {"state": "unsupported", "reason": "Text response testing is not supported for this entry."}
+        snapshot = getattr(self, "_model_status_snapshot", {})
+        return snapshot.get((provider, mid)) or self.hub.model_test_status(provider, mid)
+
+    def _model_selected(self, _event=None):
+        selected = self.model_tree.selection()
+        if not selected:
+            return
+        model = self.models[int(selected[0])]
+        info = self._model_status(model)
+        task = info.get("task", {})
+        if info["state"] == "tested":
+            completed = task.get("completed_at")
+            timestamp = completed or task.get("updated_at") or task.get("created_at", "unknown")
+            time_label = timestamp if completed else f"{timestamp} (legacy record; completion time unavailable)"
+            message = f"Last response tested {time_label} · job {task.get('id', '')}. Requested model; provider identity may not be reported. CLI installation and account state may change. Retest after changes."
+        else:
+            message = info.get("reason") or (f"Test running · job {task.get('id', '')}" if info["state"] == "testing" else "Not tested.")
+            if task and info["state"] == "failed":
+                message += f" · job {task.get('id', '')} · {task.get('completed_at') or task.get('updated_at', '')}"
+        self.model_detail.set(message)
+        self.test_button.configure(state="disabled" if info["state"] in ("testing", "unavailable", "unsupported") else "normal")
+
+    def _test_selected_model(self):
+        selected = self.model_tree.selection()
+        if not selected:
+            return self._warning("Choose a model", "Select a model first.")
+        model = self.models[int(selected[0])]
+        if self._model_status(model)["state"] in ("testing", "unavailable", "unsupported"):
+            return
+        provider, mid = model.get("provider", ""), self._model_id(model)
+        cfg = self.hub.config["providers"].get(provider, {})
+        local = provider in ("ollama", "lmstudio") or (provider == "openai_compatible" and local_url(cfg.get("base_url", "")))
+        if provider == "ollama" and (mid.lower().endswith("-cloud") or ":cloud" in mid.lower()):
+            local = False
+        if not local and not messagebox.askyesno("Test using your account?", f"This test sends a short synthetic arithmetic prompt to {provider} / {mid} using your configured account or API service. It may consume subscription or API usage. Continue?", parent=self.root):
+            return
+        try:
+            task = self.hub.test_model(provider, mid, allow_cloud=not local)
+            self.status.set(f"Model response test submitted: {task['id']}.")
+            self._display_models(update_summary=False)
+        except Exception as exc:
+            self._error("Model test was not submitted", exc)
+
+    def _display_models(self, update_summary=True):
+        selected = self.model_tree.selection()
+        selected_key = None
+        if selected:
+            values = self.model_tree.item(selected[0], "values")
+            selected_key = tuple(values[:2])
+        self._model_status_snapshot = self.hub.model_test_statuses(
+            [(m.get("provider", ""), self._model_id(m)) for m in self.models])
         self.model_tree.delete(*self.model_tree.get_children())
-        for model in self.models:
+        labels = {"tested": "✓ Last response tested", "testing": "Testing…", "untested": "Untested", "failed": "Failed", "unavailable": "Unavailable", "unsupported": "Unsupported"}
+        for index, model in enumerate(self.models):
             modality = model.get("modality", model.get("modalities", "text"))
             if isinstance(modality, list):
                 modality = ", ".join(str(x) for x in modality)
-            self.model_tree.insert("", "end", values=(model.get("provider", ""), self._model_id(model), modality, model.get("status", "available")))
+            info = self._model_status(model)
+            key = (model.get("provider", ""), self._model_id(model))
+            iid = str(index)
+            self.model_tree.insert("", "end", iid=iid, values=(*key, modality, labels[info["state"]]), tags=(info["state"],))
+            if key == selected_key:
+                self.model_tree.selection_set(iid)
+        if self.model_tree.selection():
+            self._model_selected()
         selectable = self._selectable_models()
         providers = sorted({str(m.get("provider", "")) for m in selectable if m.get("provider")})
         self.provider_pick.configure(values=providers)
-        if "ollama" in providers:
-            self.provider.set("ollama")
-        elif "lmstudio" in providers:
-            self.provider.set("lmstudio")
-        elif self.provider.get() not in providers:
+        if self.provider.get() not in providers:
             self.provider.set(providers[0] if providers else "")
         self._provider_changed()
         self.model_summary.set(f"Discovered models\n{len(selectable)} across {len(providers)} providers")
-        self.discovery_note.set(f"Discovery returned {len(selectable)} selectable models. Unavailable providers remain visible in the table. Unverified entries require provider access; task policy is checked again on submission.")
-        self.status.set("Model discovery finished.")
+        if update_summary:
+            self.discovery_note.set(f"Discovery returned {len(selectable)} selectable models. A green tick means the last synthetic response test passed with current saved settings. CLI installs and accounts can change; retest after changes.")
+            self.status.set("Model discovery finished.")
 
     def _selectable_models(self):
         return [m for m in self.models if m.get("status") not in ("unavailable", "discovery_only") and (m.get("id") or m.get("model"))]
@@ -536,6 +624,7 @@ class App(ttk.Frame):
             self.task_summary.set(f"Tasks\n{active} active · {review} awaiting review · {len(tasks)} total")
             if self.selected_task in found:
                 self._load_task(self.selected_task)
+            return tasks
         except Exception as exc:
             if not quiet:
                 self._error("Could not refresh tasks", exc)

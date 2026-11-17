@@ -1,128 +1,73 @@
 # Local Agent Orchestrator
 
-![Architecture: ChatGPT/Codex, Claude and Antigravity can each lead through local MCP. Local Agent Orchestrator dispatches bounded jobs to subscribed CLI workers, local model servers or optional APIs, then returns artifacts for independent lead review.](assets/architecture-banner.png)
+![Claude, Codex and Antigravity connect through Local Agent Orchestrator to subscribed workers, local models and optional APIs. Results return to the lead for review.](assets/architecture-banner.png)
 
-**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Download v0.2.2](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.2) · [MIT license](LICENSE)
+[Download for Windows](https://github.com/2mdipro7/local-agent-orchestrator/releases) · [Setup help](HOST-CONNECTIONS.md) · [MIT license](LICENSE)
 
-A per-user Windows coordinator that lets a compatible MCP host act as the lead and delegate bounded tasks to configured model providers. This preview has no public server, telemetry, automatic model download, startup service, or bundled credentials/model weights. It does not replace a model subscription.
+Connect your AI apps so one can delegate tasks to the others. Local Agent Orchestrator runs on your Windows PC and connects Claude, Codex, Antigravity, local models and supported APIs through one task interface.
 
-## Install and start
+For example, your lead assistant can ask Claude to draft a proposal from your notes and another worker to check a separate requirements list. It collects the responses, reviews them and prepares the final result. You can also submit tasks directly from the desktop app.
 
-1. Download `LocalAgentOrchestrator-v0.2.2-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.2), run it and choose **Install for this user**. Keep the connection option enabled to configure **Claude Desktop, Claude Code, Codex and Antigravity** for your Windows profile. Missing configuration files are created; existing settings are preserved. No administrator access is needed.
-2. Open **Local Agent Orchestrator** from the Start menu. For portable use, keep LocalAgentOrchestrator.exe and LocalAgentOrchestratorMCP.exe together.
-3. Start your existing local model server, or configure a provider in Settings. Refresh Models. Listed candidates and successful inference are different evidence.
-4. Choose the exact provider/model, a task folder and specific prompt. Attach only relevant text/image sources. The app never silently uploads a whole folder.
-5. Cloud/API/subscription use requires the per-task authorization checkbox. This is consent to use your own configured account, not a hard price cap. No API key is included.
-6. Review actual output. Execution success remains pending until the lead records criterion evidence and boundary findings.
-7. Fully quit and reopen Claude, Codex and Antigravity after setup, then ask the lead to call `hub_status` and `list_models`. Settings alone do not prove a live connection. **Connections** can repeat setup if an app later creates or migrates its profile. See [host setup and troubleshooting](HOST-CONNECTIONS.md). A web-only chat without a local connector cannot invoke this executable directly.
+The lead chooses the models and decides which outputs to accept. The orchestrator keeps the requests, results and review records together. Independent jobs can run at the same time; total time and cost still depend on the work and providers you choose.
 
-The installer configures local MCP connections; it does **not** install the provider apps, sign you in, supply subscriptions/API credits or download models. To use subscribed workers, install and sign in to the relevant Claude Code, Codex or Antigravity CLI. Desktop sign-in alone may not sign in its CLI. **Codex worker execution currently supports only CLI `0.169.0-alpha.11.1`, with its model cache and ChatGPT sign-in**; other versions fail before inference. Codex can still be a compatible MCP lead independently of that worker-version restriction. Supported locations are discovered without copying credentials or changing PATH. Fresh-profile setup is tested in disposable directories; a separate clean customer PC has not been verified.
+## Get started
 
-## Verified lead → worker routes
+1. Install the provider apps and command-line tools you want to use, then sign in with your own accounts. For local inference, install a model in Ollama or LM Studio and start its local server.
+2. Download the Windows setup file and choose **Install for this user**. Leave automatic connections enabled for Claude Desktop, Claude Code, Codex and Antigravity.
+3. Fully quit and reopen those apps. Open **Local Agent Orchestrator** from the Start menu.
+4. Open **Models**, select **Refresh models**, then test the model you want to use.
+5. Give your lead a specific task, or use **Run task** to choose a model, provide instructions and attach relevant files. Review the returned output before accepting it.
 
-All six directions below completed synthetic tasks through installed **0.2.2** on the maintainer's Windows PC: four from Claude/Antigravity desktops and two from a native Codex CLI lead. Codex required explicit owner-approved, temporary tool approvals after its initial host-policy denial. This is route verification, not a benchmark or a guarantee for every account/model/version.
+The installer needs no administrator access. It adds the host connections and preserves existing settings, reporting any conflicts. It does not install provider software, sign you in, supply subscriptions or API credits, or download models. Each host's own approval settings still apply. See [connection help](HOST-CONNECTIONS.md) if an app cannot find the orchestrator.
 
-| Lead → worker | Verified lead surface | Worker selected | Result |
-|---|---|---|---|
-| Claude → Codex | **Claude Desktop**, installed MCP 0.2.2; also older CLI harness | `gpt-6-luna` | Passed; desktop job 9.16 s |
-| Claude → Antigravity | **Claude Desktop**, installed MCP 0.2.2; also older CLI harness | `gemini-3.8-flash-medium` | Passed; desktop job 17.10 s |
-| Antigravity → Claude | **Standalone Antigravity desktop**, installed MCP 0.2.2; also older CLI harness | `claude-haiku-5-5` | Passed; desktop job 9.69 s |
-| Antigravity → Codex | **Standalone Antigravity desktop**, installed MCP 0.2.2; also older CLI harness | `gpt-6-luna` | Passed; desktop job 10.53 s |
-| Codex → Claude | **Native Codex CLI lead**, installed MCP 0.2.2; temporary owner-approved tool scope | `claude-haiku-5-5` | Passed; worker job 7.03 s |
-| Codex → Antigravity | **Native Codex CLI lead**, installed MCP 0.2.2; temporary owner-approved tool scope | `gemini-3.8-flash-medium` | Passed; worker job 19.08 s |
+## Model status
 
-Codex initially returned “MCP tool call requires approval, but approval policy is never”, without creating jobs. After a specific owner grant, six tools were approved only for the verification process: status, models, history, submission, task reads and artifact reads. The actual Codex model called those native MCP tools and retrieved both outputs; root independently accepted them. The process exited and saved global settings remained unchanged. Future sessions retain their existing approval policies. The running Codex desktop was not restarted because other chats were active, so its current UI session is not separately certified.
+Select a model and choose **Test selected model**. The app sends a short arithmetic prompt with no attached files. Cloud tests ask before using your account or API allowance.
 
-Claude and Antigravity desktop runs verified status, discovery, submission, polling and artifact retrieval without the reported timeout. Claude reported its generation model; Codex and Antigravity workers did not, so selected models remain distinct from observed identity. Claude Desktop's initial lead turn also used an out-of-scope cloud shell wait: its procedure was not fully compliant. A correction retrieved the existing results using only permitted MCP reads; root independently accepted the worker artifacts, without erasing that lead failure. See [task IDs, exact outputs, timings and test limits](TEST-RESULTS.md). Connected leads choose models and review results; response-only workers cannot recursively delegate or approve themselves.
+| Status | Meaning |
+|---|---|
+| **✓ Last response tested** (green) | A response test passed on this PC with the current saved settings. |
+| **Untested** | No matching test has passed yet, or settings have changed. |
+| **Testing…** | A test is queued or running. |
+| **Failed** | The latest test or a later task failed. Select the row for details. |
+| **Unavailable / Unsupported** | The provider could not be discovered, or this entry does not support the text test. |
 
-## Test on another PC
+The green tick survives an app restart. Changing provider settings or saved credentials clears it, and a later failed request removes it. It records a past successful response, not a guarantee of current quota or account access. Changes made outside the app, such as switching a CLI account, require a new test. Some providers do not report the exact model identity.
 
-Use the [second-PC installation and six-route test guide](SECOND-PC-TEST.md). It includes prerequisites, a copyable test prompt, a results table and privacy guidance. Install and sign in to providers on that PC with its owner's accounts; do not copy this machine's credentials or job data. The installer connects hosts, but does not supply provider software or subscriptions.
+## Supported providers
 
-## Does this save time?
+| Provider | What you can use |
+|---|---|
+| Claude Code | Existing CLI sign-in for text tasks |
+| Codex | Existing ChatGPT CLI sign-in for text tasks |
+| Antigravity | Existing CLI sign-in for text tasks |
+| Ollama and LM Studio | Installed local models for text and supported image input |
+| Gemini API | Text, image input and image generation with a supported model and your API key |
+| OpenAI-compatible API | Text, image input and image generation through a compatible hosted or local endpoint |
 
-**No net productivity improvement has been measured yet.** The verified routes prove that delegation works; arithmetic smoke-test timings do not measure useful work saved.
+Claude, Codex and Antigravity can each lead through a compatible MCP connection. Other MCP-compatible apps can connect too; web-only chats need a supported local bridge. OpenCode can lead, but its worker execution is not supported yet.
 
-The practical benefits are one connection protocol across hosts, reusable bounded task requests, overlapping independent jobs, and a common place to retrieve outputs and record review. A lead can ask one worker to draft from supplied sources while another checks a separate document. Sequential dependencies still have to wait, and all outputs still need review.
+**Codex workers currently require CLI `0.169.0-alpha.11.1`, its model cache and a ChatGPT sign-in.** Other worker versions stop before inference. A compatible Codex host can still lead independently of that worker restriction. Provider access depends on your installed tools, account and selected model.
 
-For illustration only: two independent ten-minute jobs plus three minutes of briefing and review would take about thirteen minutes concurrently instead of twenty-three sequentially. Real gains depend on provider latency, quotas, task fit and correction effort. Tiny requests, repeated context, unsuitable models or avoidable retries can make delegation slower and consume more tokens. A fixed 50/50 provider split is a coordination preference, not a speed optimization.
+Image input lets a model read an image. Image generation requires a configured image-capable API or compatible local service. No image-generation models are bundled.
 
-Measure comparable deliverables both directly and through the hub: count total elapsed time **including briefing, waiting, review and corrections**, then compare correctness, rework and reported usage/cost. The [test guide](SECOND-PC-TEST.md#does-it-save-time) describes this check. This preview does not benchmark or automatically select the best model. The lead chooses; cloud workers do not run on your laptop GPU. One local-model task runs at a time.
+## Task controls
 
-## Provider support
+- Up to four active jobs, with one local-model request at a time.
+- An 8,000-character limit for the complete authored prompt, including instructions, supplied excerpts and acceptance criteria.
+- Only selected files from the task folder enter a request. Check attachments for private information before sending them to a cloud provider.
+- Cloud, API and subscription requests require your authorization to use the configured account.
+- Workers return responses or image artifacts. They cannot edit your project, run commands, delegate further or approve their own output.
+- Completed work stays pending until the lead records a review.
 
-| Route | Preview behavior | Validation |
-|---|---|---|
-| Ollama | Installed-model discovery; local text and vision input | Real local Qwen text check completed; vision check recorded in TEST-RESULTS.md |
-| LM Studio | Loopback OpenAI-compatible text/vision requests | Protocol tests; service not installed/running on this PC |
-| Claude Code | Existing CLI sign-in; explicit model; response-only worker | Live test verifies empty built-in/MCP tool lists and matching model metadata; no recursive delegation |
-| Antigravity CLI | MCP lead and restricted response-only worker | Preexecution deny hooks plus session-only file/command/network/MCP denies; frozen worker echo and live denial checks |
-| OpenAI-compatible API | HTTPS with your key, or optional-key loopback server; text/vision and base64 image generation | Mock protocol tests; no billable API requests made |
-| Google Gemini API | Explicit model discovery/text/vision/image requests with your key | Mock protocol tests; no billable API requests made |
-| Codex | MCP lead and restricted response-only worker using existing ChatGPT CLI sign-in | Version-specific capability removal, disabled external-tool inventory and ephemeral execution; other CLI versions fail before inference |
-| OpenCode | Compatible lead via MCP; worker model discovery | Worker execution is deliberately unavailable until version-specific confinement is verified |
+This is an unsigned Windows x64 preview for attended use. Worker restrictions are application controls, not operating-system isolation. Saved API keys use Windows encryption; prompts, results and history remain local files accessible to your Windows user. Read [SECURITY.md](SECURITY.md) for the data-handling details.
 
-Image understanding and image generation are different. Ollama vision models analyze supplied images; this app does not turn them into image generators. Image creation requires a configured image-capable Gemini/OpenAI-compatible service, including a compatible local image server if you already run one. No local image-generation weights or ComfyUI workflow engine are bundled. Vertex AI/service-account OAuth and other Google APIs are not implemented by this preview.
+## Development and documentation
 
-## Boundaries
+[Build from source and contribute](CONTRIBUTING.md) · [Host connections](HOST-CONNECTIONS.md) · [Validation details](TEST-RESULTS.md) · [Release notes](CHANGELOG.md)
 
-- Four active queued/running requests maximum across Orchestrator processes sharing the profile. One local-model request is dispatched at a time. External server workloads are outside the Orchestrator's control.
-- Complete authored task prompt, guardrails, source excerpts and criteria must fit 8,000 characters. Oversized tasks are rejected, never silently truncated.
-- Source paths must be contained in the declared workspace. Conventional credential files and Orchestrator private data cannot be attached. Filename filtering cannot identify every secret; review selected content before consenting to cloud use.
-- API keys are encrypted using Windows CurrentUser DPAPI. This protects stored data but does not isolate it from every process running as that same Windows user. No cross-user or tenant isolation is claimed.
-- Source-injection handling is a prompt-level control. CLI permissions, data selection and HTTP endpoint checks add boundaries; this app is not an operating-system sandbox.
-- Lead labels are audit labels, not cryptographically authenticated identities. Every MCP host runs with the local user's authority. Workers have no lead-review tools in their response-only assignment.
-- Cancellation keeps a slot until the adapter returns. A remote/local server may finish a request after a timeout or disconnect; inspect before retrying. No claim of terminating another application's GPU work is made.
-- No task output is automatically accepted, sent, published, deployed or executed. The preview is for attended evaluation, not unattended high-stakes operation.
+Uninstall through Windows Installed apps. Saved jobs, settings, keys and host connection entries are preserved; remove those separately when retiring the app.
 
-## Open-source release
+Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Version **0.0.0** was the first public release, called **Version 0**. **0.2.0** added restricted Codex and Antigravity workers; **0.2.1** fixed Desktop discovery startup. **0.2.2** adds default first-profile registration for Claude, Codex and Antigravity and more reliable provider discovery. See [validation history](TEST-RESULTS.md) and [changelog](CHANGELOG.md). Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
-
-Codex worker restrictions currently support CLI `0.169.0-alpha.11.1` and require its existing model cache and ChatGPT sign-in. Other versions stop before inference until their controls are verified. Antigravity uses documented pre-tool denial hooks plus session-only deny rules; its tools may remain visible but calls are blocked. These are application controls under the same user account. Existing host authentication, state and owner-configured lifecycle hooks are distinct from model-requested tools and may still operate. No OS or tenant isolation is claimed.
-
-This is an unsigned early preview for attended use. Code signing, signed updates, broader accessibility/security review and independent customer-host testing remain future work. The application coordinates response-only requests; it does not yet offer arbitrary worker file edits, shell execution, an autonomous task planner or automatic model benchmarking/routing. The external lead chooses models and reviews results. Provider availability depends on each user's installed tools, account and endpoint.
-
-## Run from source
-
-Use Windows x64 and Python 3.12 with Tcl/Tk (included in the standard Windows Python installer). The application uses Python's standard library; providers are optional separate installations.
-
-```powershell
-git clone https://github.com/2mdipro7/local-agent-orchestrator.git
-cd local-agent-orchestrator
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe app_entry.py
-```
-
-For a source MCP connection, run `mcp_entry.py` with that interpreter. Export client settings from Connections. API keys saved by the app use Windows DPAPI; other operating systems are not supported in Version 0.
-
-## Test and build
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-.\.venv\Scripts\python.exe -m pip install -r requirements-build.txt
-.\.venv\Scripts\python.exe build_windows.py
-.\.venv\Scripts\python.exe smoke_windows.py
-.\.venv\Scripts\python.exe package_release.py
-```
-
-`dist/` contains the GUI and MCP executables; `release/` contains the setup executable, portable ZIP and SHA-256 checksums. `smoke_windows.py` uses a temporary data directory and does not call model providers. `validate_windows.py` is an optional real-model check: start Ollama with `qwen3:1.7b` and `moondream:latest` already installed. It performs local inference and writes ignored validation output; it does not download models. [TEST-RESULTS.md](TEST-RESULTS.md) separates previous model checks from Version 0 checks.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CHANGELOG.md](CHANGELOG.md) and [host connection instructions](HOST-CONNECTIONS.md).
-
-## Files and removal
-
-Installed program: %LOCALAPPDATA%\Programs\LocalAgentOrchestrator
-User jobs/settings/encrypted keys: %LOCALAPPDATA%\LocalAgentOrchestrator\data
-
-Remove the app using Windows Installed apps. Uninstall preserves user data. Removing that data and encrypted keys is a separate deliberate user action. The installer does not edit PATH, firewall rules or startup entries. Its default-enabled host connection step adds one MCP entry per host and backs up existing configurations. Conflicting entries remain unchanged and are reported. Uninstall preserves host entries and backups; remove the entry in the host when retiring the app.
-
-### Earlier private preview
-
-Version 0 installs separately from the earlier Local Agent Hub preview. Existing settings and jobs are not automatically moved. To deliberately reuse the old profile, pass `--home "$env:LOCALAPPDATA\LocalAgentHub\data"` to the new GUI/MCP executable. Stop old app instances before sharing that data directory. Alternatively start fresh with the new default. Uninstalling either app preserves saved data.
-
-## Creator
-
-[Mehrab Mashrafi](https://github.com/2mdipro7) · [GitHub @2mdipro7](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
-
-This is an independent community project; provider names identify integrations, not endorsement.
+Source code is [MIT licensed](LICENSE). External providers, runtimes and models retain their own terms; see [third-party notices](THIRD-PARTY-NOTICES.txt). Provider names and logos identify integrations, not endorsement.
