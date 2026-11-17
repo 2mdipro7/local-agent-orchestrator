@@ -9,6 +9,7 @@ import time
 import unittest
 
 from agenthub.core import Hub, ACCEPTANCE, secure_source_bytes
+from agenthub import __version__
 from agenthub.mcp import serve
 from agenthub.secrets import SecretStore
 from agenthub.install import install_to
@@ -46,6 +47,20 @@ class FakeProvider:
 
 
 class HubTests(unittest.TestCase):
+    def test_provider_migration_preserves_disabled_provider_and_adds_codex(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            (path / 'settings.json').write_text(json.dumps({'providers': {'claude': {'enabled': False}}, 'timeout_seconds': 90}))
+            hub = Hub(path, provider_factory=FakeProvider)
+            self.assertFalse(hub.config['providers']['claude']['enabled'])
+            self.assertTrue(hub.config['providers']['codex']['enabled'])
+            self.assertEqual(hub.config['timeout_seconds'], 90)
+
+    def test_codex_worker_rejected_before_job_creation(self):
+        with self.assertRaisesRegex(ValueError, 'not callable workers'):
+            self.hub.submit_task('codex', 'gpt-6.1-sol', 'Test only', self.workspace, allow_cloud=True)
+        self.assertEqual(self.hub.list_tasks(), [])
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         # Windows CI can expose TEMP through an 8.3 alias (for example RUNNER~1).
@@ -195,7 +210,7 @@ class HubTests(unittest.TestCase):
         serve(self.hub, io.StringIO(''.join(json.dumps(x) + '\n' for x in requests)), sink)
         replies = [json.loads(line) for line in sink.getvalue().splitlines()]
         self.assertEqual(replies[0]["result"]["protocolVersion"], "2025-06-18")
-        self.assertEqual(replies[0]["result"]["serverInfo"], {"name": "local-agent-orchestrator", "version": "0.0.0"})
+        self.assertEqual(replies[0]["result"]["serverInfo"], {"name": "local-agent-orchestrator", "version": __version__})
         self.assertEqual(len(replies[1]["result"]["tools"]), 9)
         self.assertIn("fixture:tiny", replies[2]["result"]["content"][0]["text"])
 

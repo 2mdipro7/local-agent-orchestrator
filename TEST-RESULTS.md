@@ -1,8 +1,18 @@
-# Version 0 validation
+# Validation history
 
 [Local Agent Orchestrator](https://github.com/2mdipro7/local-agent-orchestrator) · Created by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
 Date: 16 November 2026 (Asia/Dhaka). Version: 0.0.0.
+
+## Version 0.1.0 checks — 17 November 2026
+
+The lead ran 37 tests: **36 passed, 1 skipped** (Windows symbolic-link privilege unavailable; permissions unchanged). New checks cover preservation of other host settings, original-byte backups, idempotent setup, conflicting/malformed/duplicate-key JSON rejection, migrated Claude Desktop discovery, provider-settings migration, Codex protocol pagination and discovery-only execution refusal.
+
+Frozen Windows GUI and MCP smoke checks passed for 0.1.0: correct server version, nine tools, connection export, GUI startup and exit. A live signed-in Codex app-server catalog returned eight model entries; no inference turn was started, account identifiers were not returned, and its process was stopped after discovery.
+
+Claude Code reported the installed server **Connected** at user scope (all projects). After a full restart, Claude Desktop 5.11492.5 visibly reported **local-agent-orchestrator — Running**. Those connection checks initially used the already-installed 0.0.0 server; they establish host registration independently of the subsequent 0.1.0 build. No claim is made that Claude successfully delegated an inference task to Codex: Codex worker execution remains disabled.
+
+Independent Antigravity static review informed multi-profile labels; the lead checked findings against source and the installed protocol schema, corrected unsupported defect claims, and reran checks. Static worker review does not substitute for host or inference testing.
 
 ## Version 0 checks
 

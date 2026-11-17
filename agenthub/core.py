@@ -27,6 +27,7 @@ DEFAULTS = {
         "ollama": {"enabled": True, "base_url": "http://127.0.0.1:11434"},
         "lmstudio": {"enabled": True, "base_url": "http://127.0.0.1:1234/v1"},
         "claude": {"enabled": True}, "antigravity": {"enabled": True},
+        "codex": {"enabled": True},
         "opencode": {"enabled": False},
         "openai_compatible": {"enabled": False, "base_url": "", "credential": "openai_compatible"},
         "gemini": {"enabled": False, "base_url": "https://generativelanguage.googleapis.com/v1beta", "credential": "gemini"},
@@ -132,7 +133,9 @@ class Hub:
         self.provider_factory = provider_factory
         self.config = deepcopy(DEFAULTS)
         if self.config_path.is_file():
-            self.config.update(json.loads(self.config_path.read_text(encoding="utf-8")))
+            saved = json.loads(self.config_path.read_text(encoding="utf-8"))
+            self.config.update({k: v for k, v in saved.items() if k != "providers"})
+            self.config["providers"].update(saved.get("providers", {}))
         self._validate_config(self.config)
         self.providers = provider_factory(self.config, self.secrets.get)
         self._threads = {}
@@ -240,6 +243,8 @@ class Hub:
             raise ValueError("Choose an enabled provider")
         if provider == "opencode":
             raise ValueError("OpenCode can be a lead via MCP. Its worker execution is discovery-only until a supported tool-denial policy is verified.")
+        if provider == "codex":
+            raise ValueError("Codex can be a lead via MCP. Its discovered models are not callable workers yet: comprehensive response-only tool restrictions have not been verified.")
         if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/@+\-]{0,255}", model):
             raise ValueError("Choose an exact model identifier")
         if model.startswith("claude-fable"):

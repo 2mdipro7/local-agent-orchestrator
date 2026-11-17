@@ -2,7 +2,15 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
-## 0.0.0 — Version 0 — 2026-11-16
+## 0.1.0 — 2026-11-17
+
+- One-time connection setup for existing Claude Desktop and Claude Code profiles, including migrated Windows Desktop storage.
+- Backup, conflict refusal and preservation of other host settings; connection controls in the app and optional installer setup.
+- Live Codex model discovery through the signed-in CLI app-server. Generation remains unavailable until response-only tool restrictions are verified.
+- Existing provider settings survive the addition of new provider defaults.
+- Clarified host/worker boundaries and Hermes configuration example.
+
+## 0.0.0 â€” Version 0 â€” 2026-11-16
 
 First public release of Local Agent Orchestrator, evolved from the private Local Agent Hub prototype.
 

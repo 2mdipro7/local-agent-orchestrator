@@ -144,7 +144,7 @@ class ProviderManager:
         value = cfg.get('executable')
         if value:
             return shutil.which(value) or (value if Path(value).is_file() else None)
-        name = {'claude': 'claude', 'antigravity': 'agy', 'opencode': 'opencode'}[provider]
+        name = {'claude': 'claude', 'antigravity': 'agy', 'opencode': 'opencode', 'codex': 'codex'}[provider]
         found = shutil.which(name)
         if found:
             return found
@@ -212,6 +212,9 @@ class ProviderManager:
     def _discover_one(self, provider, cfg):
         def record(mid, name=None, modality='text', status='available'):
             return {'provider': provider, 'id': mid, 'name': name or mid, 'modality': modality, 'status': status}
+        if provider == 'codex':
+            from .codex_worker import discover_models
+            return discover_models(self._executable(provider, cfg))
         if provider in ('ollama', 'lmstudio', 'openai_compatible', 'gemini'):
             default = {'ollama': 'http://127.0.0.1:11434', 'lmstudio': 'http://127.0.0.1:1234/v1', 'gemini': 'https://generativelanguage.googleapis.com/v1beta'}.get(provider, '')
             base = _endpoint(cfg.get('base_url', default), local_only=provider in ('ollama', 'lmstudio'))

@@ -1,18 +1,18 @@
 # Local Agent Orchestrator — Version 0
 
-**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.0.0) · [MIT license](LICENSE)
+**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.1.0) · [MIT license](LICENSE)
 
 A per-user Windows coordinator that lets a compatible MCP host act as the lead and delegate bounded tasks to configured model providers. This preview has no public server, telemetry, automatic model download, startup service, or bundled credentials/model weights. It does not replace a model subscription.
 
 ## Install and start
 
-1. Download `LocalAgentOrchestrator-v0.0.0-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.0.0), run it and choose **Install for this user**. No administrator access is needed.
+1. Download `LocalAgentOrchestrator-v0.1.0-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.1.0), run it and choose **Install for this user**. No administrator access is needed.
 2. Open **Local Agent Orchestrator** from the Start menu. For portable use, keep LocalAgentOrchestrator.exe and LocalAgentOrchestratorMCP.exe together.
 3. Start your existing local model server, or configure a provider in Settings. Refresh Models. Listed candidates and successful inference are different evidence.
 4. Choose the exact provider/model, a task folder and specific prompt. Attach only relevant text/image sources. The app never silently uploads a whole folder.
 5. Cloud/API/subscription use requires the per-task authorization checkbox. This is consent to use your own configured account, not a hard price cap. No API key is included.
 6. Review actual output. Execution success remains pending until the lead records criterion evidence and boundary findings.
-7. To use an external lead, export connection JSON from Connections and adapt it using HOST-CONNECTIONS.md. Any host must support local stdio MCP; a web-only chat without a local connector cannot invoke this executable directly.
+7. Connect detected Claude Desktop or Claude Code profiles during installation or from Connections. Fully quit and reopen the host. For other leads, export connection JSON and adapt it using HOST-CONNECTIONS.md. Any host must support local stdio MCP; a web-only chat without a local connector cannot invoke this executable directly.
 
 ## Provider support
 
@@ -24,6 +24,7 @@ A per-user Windows coordinator that lets a compatible MCP host act as the lead a
 | Antigravity CLI | Existing sign-in; explicit model; session tool-deny rules | Adapter tests; provider-final model identity may be absent |
 | OpenAI-compatible API | HTTPS with your key, or optional-key loopback server; text/vision and base64 image generation | Mock protocol tests; no billable API requests made |
 | Google Gemini API | Explicit model discovery/text/vision/image requests with your key | Mock protocol tests; no billable API requests made |
+| Codex | Compatible lead via MCP; signed-in model catalog discovery | Live catalog discovery tested; worker execution deliberately unavailable until response-only restrictions are verified |
 | OpenCode | Compatible lead via MCP; worker model discovery | Worker execution is deliberately unavailable until version-specific confinement is verified |
 
 Image understanding and image generation are different. Ollama vision models analyze supplied images; this app does not turn them into image generators. Image creation requires a configured image-capable Gemini/OpenAI-compatible service, including a compatible local image server if you already run one. No local image-generation weights or ComfyUI workflow engine are bundled. Vertex AI/service-account OAuth and other Google APIs are not implemented by this preview.
@@ -41,7 +42,7 @@ Image understanding and image generation are different. Ollama vision models ana
 
 ## Open-source release
 
-Version **0.0.0** is the first public release, called **Version 0**. Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+Version **0.0.0** was the first public release, called **Version 0**. Version **0.1.0** adds Claude host setup and Codex model discovery; it does not yet enable Claude→Codex task execution. Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 This is an unsigned early preview for attended use. Code signing, signed updates, broader accessibility/security review and independent customer-host testing remain future work. The application coordinates response-only requests; it does not yet offer arbitrary worker file edits, shell execution, an autonomous task planner or automatic model benchmarking/routing. The external lead chooses models and reviews results. Provider availability depends on each user's installed tools, account and endpoint.
 
@@ -77,7 +78,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CHANGELOG.m
 Installed program: %LOCALAPPDATA%\Programs\LocalAgentOrchestrator
 User jobs/settings/encrypted keys: %LOCALAPPDATA%\LocalAgentOrchestrator\data
 
-Remove the app using Windows Installed apps. Uninstall preserves user data. Removing that data and encrypted keys is a separate deliberate user action. The installer does not edit PATH, firewall rules, startup entries or another lead application's configuration.
+Remove the app using Windows Installed apps. Uninstall preserves user data. Removing that data and encrypted keys is a separate deliberate user action. The installer does not edit PATH, firewall rules or startup entries. Its optional Claude connection step adds one MCP entry with a backup. Uninstall preserves host entries and backups; remove the entry in the host when retiring the app.
 
 ### Earlier private preview
 

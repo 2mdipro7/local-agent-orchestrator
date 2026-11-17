@@ -20,7 +20,7 @@ PROVIDER_LABELS = {
     "ollama": "Ollama", "lmstudio": "LM Studio",
     "openai_compatible": "OpenAI-compatible API", "gemini": "Google Gemini API",
     "claude": "Claude Code", "antigravity": "Google Antigravity",
-    "opencode": "OpenCode",
+    "opencode": "OpenCode", "codex": "Codex (model discovery only)",
 }
 DEFAULT_URLS = {
     "ollama": "http://127.0.0.1:11434",
@@ -339,9 +339,9 @@ class App(ttk.Frame):
     def _connections(self):
         page = self.pages["Connections"]
         self._heading(page, "Connect your lead assistant", "Any compatible MCP lead can use the Orchestrator: Codex, Claude, OpenCode and other clients with local MCP support.")
-        ttk.Label(page, text="Copy or export this configuration, then add it to your client's MCP settings. Web-only services need a compatible local connector. The Orchestrator does not edit other apps' settings.",
+        ttk.Label(page, text="Connect a detected Claude profile below, or export the connection for another compatible client. Each host must load this connection separately. Web-only services need a compatible local connector.",
                   wraplength=1000, style="Muted.TLabel").pack(anchor="w", pady=(0, 12))
-        self.connection_box = self._text(page, height=14, editable=False)
+        self.connection_box = self._text(page, height=6, editable=False)
         try:
             self.connection_json = json.dumps(self.hub.connection_config(self.mcp_executable), indent=2)
             self._put(self.connection_box, self.connection_json)
@@ -354,6 +354,37 @@ class App(ttk.Frame):
         ttk.Button(actions, text="Export JSON…", command=self._export_connection).pack(side="left")
         ttk.Label(page, text="Connected leads can submit and review tasks. Keep access to your local account and MCP client under your control.",
                   wraplength=1000, style="Muted.TLabel").pack(anchor="w", pady=17)
+        self.host_frame = ttk.Frame(page)
+        self.host_frame.pack(fill="x")
+        self._refresh_hosts()
+
+    def _refresh_hosts(self):
+        from .hosts import host_statuses, SERVER
+        for child in self.host_frame.winfo_children():
+            child.destroy()
+        if not self.connection_json:
+            return
+        entry = json.loads(self.connection_json)['mcpServers'][SERVER]
+        targets = host_statuses(entry)
+        ttk.Button(self.host_frame, text="Refresh installed profiles", command=self._refresh_hosts).pack(anchor="w")
+        for target in targets:
+            row = ttk.Frame(self.host_frame)
+            row.pack(fill="x", pady=5)
+            ttk.Label(row, text=target['name'] + '\n' + target['status'], wraplength=840).pack(side="left")
+            if target['status'] == 'Not connected':
+                ttk.Button(row, text="Connect", command=lambda t=target: self._connect_host(t)).pack(side="right")
+        if not targets:
+            ttk.Label(self.host_frame, text="No supported Claude configuration found. Open the host's local MCP settings and create its configuration, then refresh, or use the exported configuration.", wraplength=950).pack(anchor="w")
+
+    def _connect_host(self, target):
+        from .hosts import register_host, SERVER
+        try:
+            entry = json.loads(self.connection_json)['mcpServers'][SERVER]
+            register_host(target['path'], entry)
+            self._refresh_hosts()
+            self.status.set('Connected ' + target['name'] + '. Fully quit and reopen that app to load its tools.')
+        except (ValueError, OSError) as exc:
+            self._error('Connection was not changed', exc)
 
     def refresh_models(self):
         if getattr(self, "discovering", False):
