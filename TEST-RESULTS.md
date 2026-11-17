@@ -6,11 +6,34 @@ Last updated: 17 November 2026 (Asia/Dhaka). Current release: 0.2.2. Earlier sec
 
 ## Version 0.2.2 setup checks — 17 November 2026
 
+### Installed on the maintainer's PC
+
+The published 0.2.2 setup payload was installed at the canonical per-user location. GUI/setup SHA-256: `90492e46240371b90de2bbe2ad76944fc8f53ee1b3995a520d2554c88f8cd47d`; MCP SHA-256: `ebf819340eccb500e8ccbf1859b8cabb1ec189150db425f2817207ae4a54d228`. Normal installer setup added the missing Codex configuration. Three pre-existing staged 0.2.1 entries required a separate explicit migration with original-byte backups; this is not claimed as automatic conflict replacement by the installer. Provider settings, credentials and permissions were preserved.
+
+Claude Desktop 5.11492.5 and Antigravity Desktop 2.32.1 were closed/reopened through their UIs. Both called the installed MCP tools and reported **0.2.2** at `%LOCALAPPDATA%/Programs/LocalAgentOrchestrator/LocalAgentOrchestratorMCP.exe`. They performed status, discovery, history, submission, task reads and artifact retrieval without a tool timeout. No terminal harness submitted these four jobs:
+
+| Native desktop lead → worker | Task ID | Retrieved response | Worker elapsed |
+|---|---|---|---|
+| Claude → Codex | `997ca50642c94c1eb3422ca1a0204fe0` | `CLAUDE022_CODEX=42` | 9.16 s |
+| Claude → Antigravity | `8f1b1fb358a142dc850b2a53481783b6` | `CLAUDE022_ANTIGRAVITY=42` | 17.10 s |
+| Antigravity → Claude | `5c5131f552f2458cb293aca35c61c79d` | `AGY022_CLAUDE=42` | 9.69 s |
+| Antigravity → Codex | `ce4573b0636446ebb6c0ca5d1d12183b` | `AGY022_CODEX=42` | 10.53 s |
+
+Root retrieved each effective_prompt.txt, result.json and response.md, recomputed 17+25, inspected the adapter restrictions and empty workspace, and recorded accepted worker reviews. Prompts were 1,069–1,087 characters including the hub contract. No source/image attachments were supplied. Claude reported its model; Codex/Antigravity identities remained null with preserved warnings. This is a synthetic integration check, not a new adversarial or OS-isolation test. Raw provider events are not retained.
+
+**Lead-procedure failure:** Claude Desktop ran an out-of-scope cloud shell command to wait 45 seconds before polling, despite the MCP-only brief. Root did not accept that lead procedure. A bounded correction used only get_task/read_artifact on the existing completed jobs, without new submissions. Acceptance above applies to independently inspected worker deliverables, not a claim that the original lead obeyed every instruction. This demonstrates why prompts and independent review are necessary but do not confine every external lead's tools.
+
+**Codex native lead: blocked.** A fresh ephemeral Codex CLI session loaded the actual installer-created global connection, discovered the native tools and attempted status/model/history calls. Each was rejected by the host with “MCP tool call requires approval, but approval policy is never”. No worker jobs were created under that lead ID, no fallback was used and no approval policy was changed. Discovery is verified; successful native Codex delegation on 0.2.2 is not. The already-running desktop was not restarted because other chats were active. Historical direct-client Codex results below remain separately labeled.
+
+The two Claude-led worker intervals overlapped: both finished about 17.79 seconds after the first submission, versus 26.25 seconds summed individual durations. This is observed overlap, **not** a measured sequential baseline or net user time saved; briefing, discovery, the unnecessary wait and independent review add time. No efficiency percentage or cost saving is claimed. See [second-PC testing](SECOND-PC-TEST.md).
+
+### Build and disposable-profile checks
+
 70 automated tests: **69 passed, 1 skipped** for the existing Windows source-link creation privilege limitation. New host tests cover four fresh-profile targets, custom `CODEX_HOME`, missing JSON/TOML files, preservation of unrelated TOML bytes/comments and JSON settings, exact-byte backups, repeat setup, invalid/duplicate/conflicting configurations, active/migrated Claude profiles, ignoring stale remnants, a competing new-file writer, per-host failure isolation and live-harness compatibility. The host symlink refusal test uses a simulation when Windows cannot create a real link; that does not certify a real link on this machine.
 
 The Windows GUI and MCP executables were built and smoke-tested. The installer setup functions copied the actual frozen payload into a disposable install directory and created all four configurations under an empty synthetic Windows profile. Each saved command started the copied MCP executable and returned version **0.2.2**. The frozen server exposed nine tools; GUI startup/exit, connection export and idempotent registration passed. This checks the installer logic and packaged server handshake, not the four host applications' own first-run migration behavior. No real host profile or registry was changed by this check, and no inference was requested.
 
-Provider discovery tests cover known native install paths, a redirected Desktop environment, the bounded Windows Codex package-location query, malformed/unavailable package responses and explicit invalid-path refusal. A read-only check on the maintainer's PC found all three installed CLIs with terminal PATH lookup suppressed and no saved per-machine executable settings. Provider sign-ins, supported CLI versions and model access remain prerequisites. No fresh inference is attributed to 0.2.2; the live route evidence below used 0.2.0/0.2.1, whose inference restrictions are unchanged.
+Provider discovery tests cover known native install paths, a redirected Desktop environment, the bounded Windows Codex package-location query, malformed/unavailable package responses and explicit invalid-path refusal. A read-only check on the maintainer's PC found all three installed CLIs with terminal PATH lookup suppressed and no saved per-machine executable settings. Provider sign-ins, supported CLI versions and model access remain prerequisites. These build/setup checks made no inference requests; the installed Desktop tests above did. The older live sections below retain their original versions.
 
 No independent clean customer PC was available. An optional temporary-profile `codex mcp add` check was rejected before execution by automatic policy review and was not retried; native Codex CLI registration/first-run loading is therefore not claimed as a live test. A narrow existing-file check-to-replace race remains; close hosts during setup. Host templates may need refreshing after an app creates or migrates its profile. No provider software, credentials or model weights are bundled.
 

@@ -1,5 +1,7 @@
 # Local Agent Orchestrator
 
+![Architecture: ChatGPT/Codex, Claude and Antigravity can each lead through local MCP. Local Agent Orchestrator dispatches bounded jobs to subscribed CLI workers, local model servers or optional APIs, then returns artifacts for independent lead review.](assets/architecture-banner.png)
+
 **Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Download v0.2.2](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.2) · [MIT license](LICENSE)
 
 A per-user Windows coordinator that lets a compatible MCP host act as the lead and delegate bounded tasks to configured model providers. This preview has no public server, telemetry, automatic model download, startup service, or bundled credentials/model weights. It does not replace a model subscription.
@@ -18,18 +20,34 @@ The installer configures local MCP connections; it does **not** install the prov
 
 ## Verified lead → worker routes
 
-All six directions below completed synthetic tasks, returned actual artifacts and received independent lead review on the maintainer's Windows PC. This is route verification, not a benchmark or a guarantee for every account/model/version. The latest live runs used 0.2.0/0.2.1; 0.2.2 changes setup and discovery, not inference restrictions.
+All six directions below have historical synthetic-task evidence on the maintainer's Windows PC. The four Claude/Antigravity desktop directions passed again with installed **0.2.2**; a fresh native Codex CLI lead discovered the connection but was blocked by its approval policy before submission. This is route verification, not a benchmark or a guarantee for every account/model/version.
 
 | Lead → worker | Verified lead surface | Worker selected | Result |
 |---|---|---|---|
-| Claude → Codex | **Claude Desktop**, installed MCP 0.2.1; also CLI harness | `gpt-6-luna` | Passed; desktop job 9.19 s |
-| Claude → Antigravity | **Claude Desktop**, installed MCP 0.2.1; also CLI harness | `gemini-3.8-flash-medium` | Passed; desktop job 17.29 s |
-| Antigravity → Claude | **Standalone Antigravity desktop**, installed MCP 0.2.1; also CLI harness | `claude-haiku-5-5` | Passed; desktop job 7.04 s |
-| Antigravity → Codex | **Standalone Antigravity desktop**, installed MCP 0.2.1; also CLI harness | `gpt-6-luna` | Passed; desktop job 9.12 s |
+| Claude → Codex | **Claude Desktop**, installed MCP 0.2.2; also older CLI harness | `gpt-6-luna` | Passed; desktop job 9.16 s |
+| Claude → Antigravity | **Claude Desktop**, installed MCP 0.2.2; also older CLI harness | `gemini-3.8-flash-medium` | Passed; desktop job 17.10 s |
+| Antigravity → Claude | **Standalone Antigravity desktop**, installed MCP 0.2.2; also older CLI harness | `claude-haiku-5-5` | Passed; desktop job 9.69 s |
+| Antigravity → Codex | **Standalone Antigravity desktop**, installed MCP 0.2.2; also older CLI harness | `gpt-6-luna` | Passed; desktop job 10.53 s |
 | Codex → Claude | Codex assistant operating a direct MCP client through its shell tool, frozen MCP 0.2.0 | `claude-haiku-5-5` | Passed |
 | Codex → Antigravity | Codex assistant operating a direct MCP client through its shell tool, frozen MCP 0.2.0 | `gemini-3.8-flash-medium` | Passed |
 
-The Codex rows do not claim an autonomous Codex CLI lead or a native Codex tool-discovery UI test. Claude and Antigravity desktop runs verified status, discovery, submission, polling and artifact retrieval without the reported timeout. Claude reported its generation model; Codex and Antigravity workers did not, so selected models remain distinct from observed identity. See [task IDs, exact outputs, timings and test limits](TEST-RESULTS.md). Connected leads choose models and review results; response-only workers cannot recursively delegate or approve themselves.
+The Codex rows do not claim successful native Codex delegation on 0.2.2. Its fresh CLI session found the saved server and tools, but calls returned “MCP tool call requires approval, but approval policy is never”; no jobs were submitted or permissions changed. The running Codex desktop was not restarted because other chats were active.
+
+Claude and Antigravity desktop runs verified status, discovery, submission, polling and artifact retrieval without the reported timeout. Claude reported its generation model; Codex and Antigravity workers did not, so selected models remain distinct from observed identity. Claude Desktop's initial lead turn also used an out-of-scope cloud shell wait: its procedure was not fully compliant. A correction retrieved the existing results using only permitted MCP reads; root independently accepted the worker artifacts, without erasing that lead failure. See [task IDs, exact outputs, timings and test limits](TEST-RESULTS.md). Connected leads choose models and review results; response-only workers cannot recursively delegate or approve themselves.
+
+## Test on another PC
+
+Use the [second-PC installation and six-route test guide](SECOND-PC-TEST.md). It includes prerequisites, a copyable test prompt, a results table and privacy guidance. Install and sign in to providers on that PC with its owner's accounts; do not copy this machine's credentials or job data. The installer connects hosts, but does not supply provider software or subscriptions.
+
+## Does this save time?
+
+**No net productivity improvement has been measured yet.** The verified routes prove that delegation works; arithmetic smoke-test timings do not measure useful work saved.
+
+The practical benefits are one connection protocol across hosts, reusable bounded task requests, overlapping independent jobs, and a common place to retrieve outputs and record review. A lead can ask one worker to draft from supplied sources while another checks a separate document. Sequential dependencies still have to wait, and all outputs still need review.
+
+For illustration only: two independent ten-minute jobs plus three minutes of briefing and review would take about thirteen minutes concurrently instead of twenty-three sequentially. Real gains depend on provider latency, quotas, task fit and correction effort. Tiny requests, repeated context, unsuitable models or avoidable retries can make delegation slower and consume more tokens. A fixed 50/50 provider split is a coordination preference, not a speed optimization.
+
+Measure comparable deliverables both directly and through the hub: count total elapsed time **including briefing, waiting, review and corrections**, then compare correctness, rework and reported usage/cost. The [test guide](SECOND-PC-TEST.md#does-it-save-time) describes this check. This preview does not benchmark or automatically select the best model. The lead chooses; cloud workers do not run on your laptop GPU. One local-model task runs at a time.
 
 ## Provider support
 
