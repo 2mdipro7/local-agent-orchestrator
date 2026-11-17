@@ -66,6 +66,32 @@ class HostTests(unittest.TestCase):
         active.write_text('{}')
         self.assertEqual(desktop_configs(self.root, {'LOCALAPPDATA':str(local),'APPDATA':str(roaming)}), [active])
 
+    def test_registered_store_profile_before_first_launch(self):
+        local = self.root / 'Local'
+        env = {'LOCALAPPDATA': str(local), 'APPDATA': str(self.root / 'Roaming')}
+        expected = local / 'Packages/Claude_current/LocalCache/Roaming/Claude/claude_desktop_config.json'
+        targets = host_targets(self.root, env, claude_package_families=['Claude_current', '../bad'])
+        self.assertEqual(Path(targets[0]['path']), expected)
+        register_host(expected, self.entry)
+        self.assertTrue(expected.is_file())
+
+    def test_registered_store_does_not_override_migrated_profile(self):
+        local = self.root / 'Local'
+        migrated = local / 'Claude-Data/current'
+        migrated.mkdir(parents=True)
+        (migrated / 'Preferences').write_text('{}')
+        self.assertEqual(desktop_configs(self.root, {'LOCALAPPDATA': str(local)}, ['Claude_current']),
+                         [migrated / 'claude_desktop_config.json'])
+
+    def test_store_query_bounded_and_validated(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from agenthub.hosts import _registered_claude_families
+        with patch('agenthub.hosts.subprocess.run', return_value=SimpleNamespace(returncode=0, stdout='["Claude_current", "../bad", 3]')) as run:
+            if __import__('os').name == 'nt':
+                self.assertEqual(_registered_claude_families(), ['Claude_current'])
+                self.assertEqual(run.call_args.kwargs['timeout'], 5)
+
     def test_fresh_profile_and_codex_home(self):
         from agenthub.install import register_default_hosts
         app = self.root / 'app'
@@ -91,11 +117,28 @@ class HostTests(unittest.TestCase):
         self.assertEqual(Path(result['backup']).read_bytes(), raw)
         self.assertTrue(path.read_bytes().startswith(raw))
         self.assertFalse(register_host(path, self.entry, 'toml')['changed'])
+        import tomllib
+        self.assertEqual(tomllib.loads(path.read_text())['mcp_servers']['local-agent-orchestrator']['startup_timeout_sec'], 60)
         for text in ('bad = [', 'x = 1\nx = 2', '[mcp_servers.local-agent-orchestrator]\ncommand = "other"', 'mcp_servers = 1'):
             path.write_text(text)
             with self.assertRaises(ValueError):
                 register_host(path, self.entry, 'toml')
             self.assertEqual(path.read_text(), text)
+
+    def test_existing_launch_options_and_disabled_state_preserved(self):
+        existing = {**self.entry, 'startup_timeout_sec': 90, 'env': {'EXAMPLE': 'fixture'}}
+        self.path.write_text(json.dumps({'mcpServers': {'local-agent-orchestrator': existing}}))
+        original = self.path.read_bytes()
+        self.assertFalse(register_host(self.path, self.entry)['changed'])
+        self.assertEqual(self.path.read_bytes(), original)
+        for flag in ({'enabled': False}, {'disabled': True}):
+            disabled = {**existing, **flag}
+            self.path.write_text(json.dumps({'mcpServers': {'local-agent-orchestrator': disabled}}))
+            original = self.path.read_bytes()
+            self.assertIn('Disabled', connection_status(self.path, self.entry))
+            with self.assertRaisesRegex(ValueError, 'disabled'):
+                register_host(self.path, self.entry)
+            self.assertEqual(self.path.read_bytes(), original)
 
     def test_active_profile_without_config(self):
         local = self.root / 'Local'

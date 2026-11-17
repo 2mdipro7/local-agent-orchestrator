@@ -2,7 +2,7 @@
 
 ## One-time Claude, Codex and Antigravity setup
 
-The 0.2.3 installer configures **Claude Desktop, Claude Code, Codex and Antigravity** by default. Keep **Configure Claude Desktop, Claude Code, Codex and Antigravity** checked. Missing configuration files are created, so an empty profile is not silently skipped. The completion dialog reports each host's outcome. In the app, **Connections → Connect** performs the same setup for a selected host.
+The 0.2.4 installer configures **Claude Desktop, Claude Code, Codex and Antigravity** by default. Keep **Configure Claude Desktop, Claude Code, Codex and Antigravity** checked. Missing configuration files are created, so an empty profile is not silently skipped. The completion dialog reports each host's outcome and separately checks the installed MCP server with initialize and tools/list. It saves setup-report.json beside the app. A startup failure or a host configuration conflict is reported as needing attention, with a retry option. In the app, **Connections → Connect** registers a selected host; the installer also runs the server startup check.
 
 | Host | Configuration written for the current Windows user |
 |---|---|
@@ -13,13 +13,13 @@ The 0.2.3 installer configures **Claude Desktop, Claude Code, Codex and Antigrav
 
 Close hosts before setup to avoid concurrent settings writes. Existing JSON settings are preserved; Codex TOML text and comments remain byte-for-byte before the appended entry. Existing files receive adjacent original-byte backups; repeat setup with the same entry makes no new backup. A conflicting, malformed or linked configuration is left unchanged and reported. New files are installed without overwriting a file created concurrently. Existing-file replacement checks for observed concurrent changes but cannot lock every host writer.
 
-Fully quit and reopen the hosts after setup. Ask each lead to call `hub_status` and check version `0.2.3`, then call `list_models`. Configuration alone is not a successful handshake. If an app installed later creates or migrates its own profile, rerun setup or use Connections. Empty-profile tests are automated; a separate clean customer PC has not been certified.
+The green MCP connection indicator is shown by the host, not the installer. The local startup check does not certify that a running host has reloaded its settings. Fully quit and reopen the hosts after setup. Ask each lead to call `hub_status` and check version `0.2.4`, then call `list_models`. Configuration alone is not a successful handshake. If an app installed later creates or migrates its own profile, rerun setup or use Connections. Empty-profile tests are automated; a separate clean customer PC has not been certified.
 
 Host approval policies still apply. On this PC a fresh Codex CLI session initially returned **“MCP tool call requires approval, but approval policy is never”** before calls reached the server. Registration does not grant tool approval. After a specific owner grant, temporary per-process approval for six verification tools allowed native Codex delegation to both Claude and Antigravity; the process exited with saved global settings unchanged. If this denial occurs, stop the affected operation and have the owner explicitly approve the needed tool scope through their normal host controls. Do not automatically broaden global permissions or switch routes after a denial. The installer deliberately does not change approval policies.
 
 Antigravity uses global `~/.gemini/config/mcp_config.json`; an empty initial file can be initialized with a backup. This applies across projects using that profile. See [Google's MCP reference](https://antigravity.google/docs/mcp/). Lead connections and restricted worker execution use separate settings.
 
-Desktop discovery supports classic `%APPDATA%/Claude`, MSIX redirected profiles, and migrated `%LOCALAPPDATA%/Claude-Data/<profile>` configurations. Existing app-state markers can identify profiles whose MCP file is not yet present; empty migration remnants are ignored. A completely fresh profile uses the classic location. Claude Code uses its user configuration, so the connection applies across projects. If a host already connects to an earlier private orchestrator plugin under another name, retain one deliberate connection; automatic setup does not remove another plugin or arbitrary alias.
+Desktop discovery supports classic `%APPDATA%/Claude`, MSIX redirected profiles, and migrated `%LOCALAPPDATA%/Claude-Data/<profile>` configurations. Existing app-state markers can identify profiles whose MCP file is not yet present; empty migration remnants are ignored. Before the first Store-app launch, setup checks the current user's registered Claude package and configures its redirected profile. It does not treat abandoned package folders as installed apps. If no active or registered Store profile is found, setup uses the classic location. Claude Code uses its user configuration, so the connection applies across projects. If a host already connects to an earlier private orchestrator plugin under another name, retain one deliberate connection; automatic setup does not remove another plugin or arbitrary alias.
 
 Install the host applications and required CLIs yourself and sign in to your own accounts. The installer supplies no provider executables, credentials, subscriptions or model weights. Claude and Antigravity workers need their corresponding CLI sign-ins. Codex workers additionally require verified CLI `0.169.0-alpha.11.1` and its model cache; other versions fail before inference. A host's ability to lead is separate from its CLI's ability to serve as a worker. API-key users can configure the supported API providers separately; CLI workers do not silently consume API-key environment variables.
 
@@ -41,6 +41,7 @@ Replace <MCP_EXE> with the absolute installed path to LocalAgentOrchestratorMCP.
 [mcp_servers."local-agent-orchestrator"]
 command = 'C:\Users\YOUR_PROFILE\AppData\Local\Programs\LocalAgentOrchestrator\LocalAgentOrchestratorMCP.exe'
 args = []
+startup_timeout_sec = 60
 ```
 
 ## OpenCode V2 local MCP entry
@@ -49,7 +50,7 @@ args = []
 {"mcp":{"servers":{"local-agent-orchestrator":{"type":"local","command":["<MCP_EXE>"],"disabled":false}}}}
 ```
 
-Host formats can change. Codex registration is automatic in 0.2.2; the TOML example is for manual inspection or recovery. Its global settings are shared by the app and CLI; see [OpenAI's MCP setup documentation](https://developers.openai.com/learn/docs-mcp). OpenCode and Hermes remain manual configurations. The same executable can be configured in Hermes:
+Host formats can change. Codex registration is automatic; new entries allow 60 seconds for startup, including cold executable extraction. Existing startup settings and approval choices are preserved. See [Codex configuration reference](https://developers.openai.com/codex/config-reference/). The TOML example is for manual inspection or recovery. Its global settings are shared by the app and CLI; see [OpenAI's MCP setup documentation](https://developers.openai.com/learn/docs-mcp). OpenCode and Hermes remain manual configurations. The same executable can be configured in Hermes:
 
 ```yaml
 mcp_servers:

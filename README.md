@@ -1,12 +1,12 @@
 # Local Agent Orchestrator
 
 <p align="center">
-  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.3/LocalAgentOrchestrator-v0.2.3-Setup.exe">
+  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.4/LocalAgentOrchestrator-v0.2.4-Setup.exe">
     <img src="assets/download-windows.svg" alt="Download Windows EXE" width="420" height="64">
   </a>
 </p>
 
-<p align="center">Windows x64 · v0.2.3 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.3/LocalAgentOrchestrator-v0.2.3-Setup.exe">Direct installer download</a></p>
+<p align="center">Windows x64 · v0.2.4 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.4/LocalAgentOrchestrator-v0.2.4-Setup.exe">Direct installer download</a></p>
 
 ![Claude, Codex and Antigravity connect through Local Agent Orchestrator to subscribed workers, local models and optional APIs. Results return to the lead for review.](assets/architecture-banner.png)
 
@@ -22,13 +22,13 @@ The lead chooses the models and decides which outputs to accept. The orchestrato
 
 1. Install the provider apps and command-line tools you want to use, then sign in with your own accounts. For local inference, install a model in Ollama or LM Studio and start its local server.
 2. Download the Windows setup file and choose **Install for this user**. Leave automatic connections enabled for Claude Desktop, Claude Code, Codex and Antigravity.
-3. Fully quit and reopen those apps. Open **Local Agent Orchestrator** from the Start menu.
+3. Check the setup results, then fully quit and reopen Codex and Claude. They load the connection when they restart. Open **Local Agent Orchestrator** from the Start menu.
 4. Open **Models**, select **Refresh models**, then test the model you want to use.
 5. Give your lead a specific task, or use **Run task** to choose a model, provide instructions and attach relevant files. Review the returned output before accepting it.
 
-The installer needs no administrator access. It adds the host connections and preserves existing settings, reporting any conflicts. It does not install provider software, sign you in, supply subscriptions or API credits, or download models. Each host's own approval settings still apply. See [connection help](HOST-CONNECTIONS.md) if an app cannot find the orchestrator.
+The installer needs no administrator access. It adds the host connections and preserves existing settings, reporting any conflicts. It does not install provider software, sign you in, supply subscriptions or API credits, or download models. Setup checks that the installed MCP server responds and reports each host configuration separately. The green MCP connection indicator belongs to Codex or Claude and appears after that host loads the server; the model response tick below is a separate check. Each host's own approval settings still apply. See [connection help](HOST-CONNECTIONS.md) if an app cannot find the orchestrator.
 
-## Model status
+## Optional model response checks
 
 Select a model and choose **Test selected model**. The app sends a short arithmetic prompt with no attached files. Cloud tests ask before using your account or API allowance.
 

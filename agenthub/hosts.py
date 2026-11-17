@@ -2,6 +2,8 @@
 import json
 import os
 from pathlib import Path
+import re
+import subprocess
 import tempfile
 import tomllib
 import uuid
@@ -9,8 +11,45 @@ import uuid
 SERVER = 'local-agent-orchestrator'
 
 
-def desktop_configs(home=None, environ=None):
+def host_entry(entry, format):
+    """Allow a cold Windows executable more time in a new Codex connection."""
+    result = dict(entry)
+    if format == 'toml':
+        result.setdefault('startup_timeout_sec', 60)
+    return result
+
+
+def _same_launch(existing, entry):
+    return (isinstance(existing, dict) and existing.get('command') == entry['command']
+            and existing.get('args', []) == entry.get('args', []) and not existing.get('url'))
+
+
+def _disabled(entry):
+    return entry.get('enabled') is False or entry.get('disabled') is True
+
+
+def _registered_claude_families():
+    """Read current-user Store registration, not abandoned package directories."""
+    if os.name != 'nt':
+        return []
+    shell = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+    try:
+        result = subprocess.run([str(shell), '-NoProfile', '-NonInteractive', '-Command',
+                                 'Get-AppxPackage -Name Claude | Select-Object -ExpandProperty PackageFamilyName | ConvertTo-Json -Compress'],
+                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                text=True, timeout=5, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if result.returncode or len(result.stdout) > 32768 or not result.stdout.strip():
+            return []
+        values = json.loads(result.stdout)
+        values = [values] if isinstance(values, str) else values
+        return [value for value in values if isinstance(value, str) and re.fullmatch(r'Claude_[a-zA-Z0-9]+', value)] if isinstance(values, list) else []
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
+
+
+def desktop_configs(home=None, environ=None, package_families=None):
     """Choose actual desktop profiles, avoiding empty migration remnants."""
+    real_profile = home is None and environ is None
     home = Path(home or Path.home())
     env = os.environ if environ is None else environ
     local = Path(env.get('LOCALAPPDATA', home / 'AppData/Local'))
@@ -21,16 +60,25 @@ def desktop_configs(home=None, environ=None):
         return directory.is_dir() and any((directory / marker).exists() for marker in
             ('claude_desktop_config.json', 'Preferences', 'Local State', 'Session Storage'))
     paths = [d / 'claude_desktop_config.json' for d in dirs if active(d)]
+    if not paths:
+        families = package_families if package_families is not None else (_registered_claude_families() if real_profile else [])
+        for family in families:
+            if not isinstance(family, str) or not re.fullmatch(r'Claude_[a-zA-Z0-9]+', family):
+                continue
+            directory = local / 'Packages' / family / 'LocalCache/Roaming/Claude'
+            if not (directory / '.user-data-left').exists():
+                paths.append(directory / 'claude_desktop_config.json')
     if classic.is_file() or (not paths):
         paths.append(classic)
     return list(dict.fromkeys(paths))
 
 
-def host_targets(home=None, environ=None):
+def host_targets(home=None, environ=None, claude_package_families=None):
+    desktop = desktop_configs(home, environ, claude_package_families)
     home = Path(home or Path.home())
     env = os.environ if environ is None else environ
     result = [{'id': 'claude-desktop-' + str(i), 'name': 'Claude Desktop (' + str(p.parent) + ')', 'path': str(p), 'format': 'json'}
-              for i, p in enumerate(desktop_configs(home, env))]
+              for i, p in enumerate(desktop)]
     codex_home = Path(env['CODEX_HOME']) if env.get('CODEX_HOME') else home / '.codex'
     result.extend([
         {'id': 'claude-code', 'name': 'Claude Code (all projects)', 'path': str(home / '.claude.json'), 'format': 'json'},
@@ -89,7 +137,9 @@ def connection_status(path, entry, format=None):
         servers = obj.get('mcp_servers' if format == 'toml' else 'mcpServers', {})
         if SERVER not in servers:
             return 'Not connected'
-        if servers[SERVER] == entry:
+        if _same_launch(servers[SERVER], entry):
+            if _disabled(servers[SERVER]):
+                return 'Disabled in host settings; left unchanged'
             return 'Configured (restart host to load)'
         return 'Different entry exists; left unchanged'
     except FileNotFoundError:
@@ -108,8 +158,11 @@ def register_host(path, entry, format=None):
     format = _format(path, format)
     if not isinstance(entry, dict) or not isinstance(entry.get('command'), str) or not isinstance(entry.get('args', []), list) or not all(isinstance(a, str) for a in entry.get('args', [])):
         raise ValueError('Invalid MCP command')
-    if format == 'toml' and set(entry) - {'command', 'args'}:
+    entry = host_entry(entry, format)
+    if format == 'toml' and set(entry) - {'command', 'args', 'startup_timeout_sec'}:
         raise ValueError('Unsupported Codex MCP entry fields')
+    if format == 'toml' and (type(entry['startup_timeout_sec']) not in (int, float) or not 0 < entry['startup_timeout_sec'] <= 300):
+        raise ValueError('Invalid Codex startup timeout')
     command = Path(entry['command'])
     if not command.is_absolute() or not command.is_file():
         raise ValueError('MCP executable is missing; install the application first')
@@ -122,7 +175,9 @@ def register_host(path, entry, format=None):
     key = 'mcp_servers' if format == 'toml' else 'mcpServers'
     servers = obj.get(key, {})
     if SERVER in servers:
-        if servers[SERVER] == entry:
+        if _same_launch(servers[SERVER], entry):
+            if _disabled(servers[SERVER]):
+                raise ValueError('The orchestrator is disabled in this host; enable it in the host settings and retry')
             return {'changed': False, 'restart_required': True, 'path': str(path)}
         raise ValueError('A different orchestrator entry exists; it was left unchanged')
     if format == 'toml':
@@ -131,6 +186,7 @@ def register_host(path, entry, format=None):
         section = '[mcp_servers."' + SERVER + '"]\ncommand = ' + json.dumps(entry['command'], ensure_ascii=False) + '\n'
         if 'args' in entry:
             section += 'args = ' + json.dumps(entry['args'], ensure_ascii=False) + '\n'
+        section += 'startup_timeout_sec = ' + str(entry['startup_timeout_sec']) + '\n'
         encoded = raw + separator + section.encode('utf-8')
         try:
             parsed = tomllib.loads(encoded.decode('utf-8'))

@@ -1,5 +1,8 @@
 """Per-user installation. No elevation, PATH, service or startup changes."""
+import json
 import os
+import queue
+import threading
 from pathlib import Path
 import shutil
 import subprocess
@@ -69,18 +72,56 @@ def install_to(destination=None, *, payload_app=None, payload_worker=None, regis
     return target
 
 
-def register_default_hosts(path, *, home=None, environ=None):
-    """Register each supported host independently and report its outcome."""
+def register_default_hosts(path, *, home=None, environ=None, detailed=False):
+    """Register hosts independently; legacy callers receive a list of notes."""
     from .hosts import host_targets, register_host
     entry = {'command': str(Path(path) / 'LocalAgentOrchestratorMCP.exe'), 'args': []}
-    notes = []
+    outcomes = []
+    safe_reasons = {
+        'The orchestrator is disabled in this host; enable it in the host settings and retry': 'Disabled in host settings; enable it and retry.',
+        'A different orchestrator entry exists; it was left unchanged': 'A different entry already exists; review it in host settings.',
+        'MCP executable is missing; install the application first': 'MCP executable is missing; reinstall and retry.',
+        'Host configuration is invalid; no changes made': 'Host configuration is invalid; repair it and retry.',
+        'Host MCP configuration must be an object': 'Host configuration is invalid; repair it and retry.',
+    }
     for target in host_targets(home, environ):
+        item = {'id': target['id'], 'name': target['name'], 'path': target['path']}
         try:
             result = register_host(target['path'], entry, target['format'])
-            notes.append(target['name'] + (': configured' if result['changed'] else ': already configured'))
-        except (OSError, ValueError) as exc:
-            notes.append(target['name'] + ': unchanged — ' + str(exc))
-    return notes
+            item.update(status='configured' if result['changed'] else 'already configured', reason='')
+        except ValueError as exc:
+            item.update(status='unchanged', reason=safe_reasons.get(str(exc), 'Configuration could not be safely updated; inspect host settings and retry.'))
+        except OSError:
+            item.update(status='unchanged', reason='Could not read or write host settings; check permissions and retry.')
+        outcomes.append(item)
+    if detailed:
+        return outcomes
+    return [item['name'] + ': ' + item['status'] + (' — ' + item['reason'] if item['reason'] else '') for item in outcomes]
+
+
+def setup_installation(*, connect=True, progress=lambda message: None):
+    """Install, register selected hosts and check the installed server."""
+    from .connection_check import check_installed_server
+    progress("Installing files and shortcuts…")
+    path = install_to()
+    progress("Configuring host connections…")
+    try:
+        hosts = register_default_hosts(path, detailed=True) if connect else []
+    except Exception:
+        hosts = [{'id': 'registration', 'name': 'Host registration', 'path': '',
+                  'status': 'unchanged', 'reason': 'Could not inspect host settings; check permissions and retry.'}]
+    progress("Checking the installed MCP server…")
+    probe = check_installed_server(path)
+    report = {"version": __version__, "executable": str(path / "LocalAgentOrchestratorMCP.exe"),
+              "host_registration": "attempted" if connect else "skipped",
+              "hosts": hosts, "probe": probe}
+    report["ok"] = probe["ok"] and all(h["status"] != "unchanged" for h in hosts)
+    try:
+        (path / "setup-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    except OSError:
+        report["ok"] = False
+        report["report_error"] = "Could not save setup report"
+    return report
 
 
 def installer_ui():
@@ -96,18 +137,71 @@ def installer_ui():
     ttk.Label(frame, text="Created by Mehrab Mashrafi (@2mdipro7)").pack(anchor="w", pady=(8, 0))
     ttk.Label(frame, text=str(install_dir()), wraplength=530).pack(anchor="w", pady=18)
     connect_hosts = tk.BooleanVar(value=True)
-    ttk.Checkbutton(frame, text="Configure Claude Desktop, Claude Code, Codex and Antigravity", variable=connect_hosts).pack(anchor="w")
-    def install():
+    check = ttk.Checkbutton(frame, text="Configure Claude Desktop, Claude Code, Codex and Antigravity", variable=connect_hosts)
+    check.pack(anchor="w")
+    status = ttk.Label(frame, text="Ready to install")
+    status.pack(anchor="w", pady=(10, 0))
+    events = queue.Queue()
+    busy = False
+
+    def poll():
+        nonlocal busy
         try:
-            path = install_to()
-            notes = []
-            if connect_hosts.get():
-                notes = register_default_hosts(path)
-            messagebox.showinfo("Installed", "Installed for your Windows profile.\nOpen Local Agent Orchestrator from the Start menu.\n\n" + '\n'.join(notes) + '\n\nRestart configured hosts and sign in to each provider separately.\n' + str(path), parent=root)
+            while True:
+                kind, value = events.get_nowait()
+                if kind == "progress":
+                    status.config(text=value)
+                elif kind == "done":
+                    busy = False
+                    button.config(state="normal")
+                    check.config(state="normal")
+                    lines = [h['name'] + ': ' + h['status'] + ((' — ' + h['reason']) if h['reason'] else '') for h in value['hosts']]
+                    if value['host_registration'] == 'skipped':
+                        lines.append('Host configuration skipped')
+                    lines.append(value['probe']['status'])
+                    if value['host_registration'] == 'attempted':
+                        lines.append('Restart configured hosts to load the connection.')
+                    lines.append('Setup report: ' + str(Path(value['executable']).parent / 'setup-report.json'))
+                    lines.append('No JSON editing is normally needed. Server response does not confirm a host has loaded it.')
+                    if value.get('report_error'):
+                        lines.append(value['report_error'])
+                    status.config(text="Setup complete" if value['ok'] else "Setup needs attention; you can retry")
+                    show = messagebox.showinfo if value['ok'] else messagebox.showwarning
+                    show("Installed" if value['ok'] else "Installation needs attention", "\n".join(lines), parent=root)
+                else:
+                    busy = False
+                    button.config(state="normal")
+                    check.config(state="normal")
+                    status.config(text="Setup could not finish; you can retry")
+                    messagebox.showerror("Installation could not finish", "Close running copies and try again. " + value, parent=root)
+        except queue.Empty:
+            pass
+        root.after(100, poll)
+
+    def install():
+        nonlocal busy
+        if busy:
+            return
+        busy = True
+        button.config(state="disabled")
+        check.config(state="disabled")
+        connect = connect_hosts.get()
+        def work():
+            try:
+                result = setup_installation(connect=connect, progress=lambda value: events.put(("progress", value)))
+                events.put(("done", result))
+            except Exception:
+                events.put(("error", "Check the installation folder and permissions."))
+        threading.Thread(target=work, daemon=True).start()
+    button = ttk.Button(frame, text="Install for this user", command=install)
+    button.pack(anchor="e")
+    def close_window():
+        if busy:
+            messagebox.showinfo("Setup in progress", "Please wait for setup to finish before closing this window.", parent=root)
+        else:
             root.destroy()
-        except Exception as exc:
-            messagebox.showerror("Installation could not finish", "Close any running Local Agent Orchestrator copies and try again.\n" + str(exc)[:300], parent=root)
-    ttk.Button(frame, text="Install for this user", command=install).pack(anchor="e")
+    root.protocol("WM_DELETE_WINDOW", close_window)
+    root.after(100, poll)
     root.mainloop()
 
 

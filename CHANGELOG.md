@@ -2,6 +2,13 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.2.4 (2026-11-17)
+
+- Setup now tests the installed MCP server and reports per-host registration separately. Failed startup and incomplete setup stay visible with a retry option and a saved setup report.
+- Detect currently registered Claude Store profiles before first launch while retaining active migrated profiles and ignoring abandoned package directories.
+- Allow 60 seconds for new Codex MCP connections to start. Preserve matching connections with extra settings and report disabled entries without changing them.
+- Clarify that the host MCP connection indicator and optional model response tests are separate.
+
 ## 0.2.3 — 2026-11-17
 
 - Models now offers a response test and a green tick for a successful test with current saved settings. Untested, running, failed and unavailable states remain distinct, with details for the selected model.

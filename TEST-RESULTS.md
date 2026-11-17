@@ -2,7 +2,15 @@
 
 [Local Agent Orchestrator](https://github.com/2mdipro7/local-agent-orchestrator) · Created by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Last updated: 17 November 2026 (Asia/Dhaka). Current release: 0.2.3. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the 0.2.x results.
+Last updated: 17 November 2026 (Asia/Dhaka). Current release: 0.2.4. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the 0.2.x results.
+
+## Version 0.2.4 installer connection checks (17 November 2026)
+
+The source suite ran 84 tests: 83 passed and the Windows source-symlink permission check remained skipped. New coverage includes current-user Store registration before Claude first launch, migrated-profile precedence, custom Codex home, matching entries with extra settings, preserved disabled connections, per-host error reports, and 60-second startup configuration for new Codex connections.
+
+The install-time MCP probe validates initialize, negotiated protocol, tools capability, server identity/version and tools/list without provider discovery or inference. Tests reject invalid protocol/capabilities, missing tools, wrong version, early exit and oversized output. A timeout fixture starts a descendant holding stdout; the test checks its recorded PID is no longer active after cleanup. The native Windows current-user package query also returned the installed Claude package family on the maintainer's PC.
+
+The probe and saved host configuration are separate evidence. Neither proves that an already-running Claude or Codex desktop has reloaded its settings, nor that a second physical PC shows a green indicator. Existing actual desktop route checks below retain their original release versions. No host approval or disabled-setting bypass is part of setup.
 
 ## Version 0.2.3 model checks (17 November 2026)
 

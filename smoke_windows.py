@@ -1,13 +1,16 @@
 """Check frozen GUI and stdio protocol without contacting providers."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import tomllib
+from unittest.mock import patch
 
 from agenthub import __version__
 from agenthub.install import install_to, register_default_hosts
 from agenthub.hosts import host_targets, SERVER
+from agenthub.connection_check import check_installed_server
 
 
 def main():
@@ -46,13 +49,19 @@ def main():
             obj = tomllib.loads(raw) if target['format'] == 'toml' else json.loads(raw)
             saved = obj['mcp_servers' if target['format'] == 'toml' else 'mcpServers'][SERVER]
             assert Path(saved['command']) == install / 'LocalAgentOrchestratorMCP.exe'
+            if target['format'] == 'toml':
+                assert saved['startup_timeout_sec'] == 60
             result = subprocess.run([saved['command'], *saved['args'], '--home', str(home)],
                                     input=json.dumps(messages[0]) + '\n', capture_output=True, text=True,
                                     timeout=45, check=True)
             reply = json.loads(result.stdout)
             assert reply['result']['serverInfo']['version'] == __version__, target['id']
         assert all('already configured' in note for note in register_default_hosts(install, home=profile, environ=env))
-    print("PASS: frozen GUI/MCP, nine tools, connection export, disposable install and four fresh-profile MCP handshakes; no inference calls or real profile edits.")
+        # Exercise the real install-time handshake against the frozen executable,
+        # using this disposable profile for the server's own local database.
+        with patch.dict(os.environ, env):
+            assert check_installed_server(install)['ok']
+    print("PASS: frozen GUI/MCP, nine tools, disposable install, four fresh-profile handshakes, Codex timeout and install-time probe; no inference calls or real profile edits.")
 
 
 if __name__ == "__main__":
