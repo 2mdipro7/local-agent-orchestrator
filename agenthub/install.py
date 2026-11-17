@@ -67,6 +67,20 @@ def install_to(destination=None, *, payload_app=None, payload_worker=None, regis
     return target
 
 
+def register_default_hosts(path, *, home=None, environ=None):
+    """Register each supported host independently and report its outcome."""
+    from .hosts import host_targets, register_host
+    entry = {'command': str(Path(path) / 'LocalAgentOrchestratorMCP.exe'), 'args': []}
+    notes = []
+    for target in host_targets(home, environ):
+        try:
+            result = register_host(target['path'], entry, target['format'])
+            notes.append(target['name'] + (': configured' if result['changed'] else ': already configured'))
+        except (OSError, ValueError) as exc:
+            notes.append(target['name'] + ': unchanged — ' + str(exc))
+    return notes
+
+
 def installer_ui():
     root = tk.Tk()
     root.title("Install Local Agent Orchestrator")
@@ -75,26 +89,19 @@ def installer_ui():
     frame = ttk.Frame(root, padding=30)
     frame.pack(fill="both", expand=True)
     ttk.Label(frame, text="Local Agent Orchestrator", font=("Segoe UI", 22, "bold")).pack(anchor="w")
-    ttk.Label(frame, text="Version 0 · open-source preview · installs for your profile", font=("Segoe UI", 11)).pack(anchor="w", pady=(4, 22))
+    ttk.Label(frame, text="Version " + __version__ + " · open-source preview · installs for your profile", font=("Segoe UI", 11)).pack(anchor="w", pady=(4, 22))
     ttk.Label(frame, text="Connect compatible lead agents to local models, subscribed\nCLI workers and your configured API providers.\n\nNo administrator access, public server or startup entry.\nExternal providers and model weights are not bundled.", justify="left").pack(anchor="w")
     ttk.Label(frame, text="Created by Mehrab Mashrafi (@2mdipro7)").pack(anchor="w", pady=(8, 0))
     ttk.Label(frame, text=str(install_dir()), wraplength=530).pack(anchor="w", pady=18)
-    connect_claude = tk.BooleanVar(value=True)
-    ttk.Checkbutton(frame, text="Connect detected Claude and Antigravity profiles", variable=connect_claude).pack(anchor="w")
+    connect_hosts = tk.BooleanVar(value=True)
+    ttk.Checkbutton(frame, text="Configure Claude Desktop, Claude Code, Codex and Antigravity", variable=connect_hosts).pack(anchor="w")
     def install():
         try:
             path = install_to()
             notes = []
-            if connect_claude.get():
-                from .hosts import host_targets, register_host
-                entry = {'command': str(path / 'LocalAgentOrchestratorMCP.exe'), 'args': []}
-                for target in host_targets():
-                    try:
-                        register_host(target['path'], entry)
-                        notes.append(target['name'] + ': configured; restart this host.')
-                    except (OSError, ValueError):
-                        notes.append(target['name'] + ': unchanged; check Connections in the app.')
-            messagebox.showinfo("Installed", "Installed for your Windows profile.\nOpen Local Agent Orchestrator from the Start menu.\n\n" + '\n'.join(notes) + '\n' + str(path), parent=root)
+            if connect_hosts.get():
+                notes = register_default_hosts(path)
+            messagebox.showinfo("Installed", "Installed for your Windows profile.\nOpen Local Agent Orchestrator from the Start menu.\n\n" + '\n'.join(notes) + '\n\nRestart configured hosts and sign in to each provider separately.\n' + str(path), parent=root)
             root.destroy()
         except Exception as exc:
             messagebox.showerror("Installation could not finish", "Close any running Local Agent Orchestrator copies and try again.\n" + str(exc)[:300], parent=root)

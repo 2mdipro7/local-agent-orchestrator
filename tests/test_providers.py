@@ -1,6 +1,7 @@
 import base64
 import json
 import tempfile
+import subprocess
 import threading
 import unittest
 from pathlib import Path
@@ -169,8 +170,37 @@ class ProviderTests(unittest.TestCase):
         target = self.out / 'Microsoft' / 'WinGet' / 'Packages' / 'Anthropic.ClaudeCode_example' / 'claude.exe'
         target.parent.mkdir(parents=True)
         target.touch()
-        with mock.patch.dict('os.environ', {'LOCALAPPDATA': str(self.out)}), mock.patch('agenthub.providers.shutil.which', return_value=None):
+        with mock.patch.dict('os.environ', {'LOCALAPPDATA': str(self.out)}), mock.patch('agenthub.providers.shutil.which', return_value=None), mock.patch('pathlib.Path.home', return_value=self.out):
             self.assertEqual(Path(self.manager._executable('claude', {})), target)
+
+    def test_desktop_path_discovery_does_not_require_saved_machine_paths(self):
+        native_claude = self.out / '.local/bin/claude.exe'
+        agy = self.out / 'AppData/Local/agy/bin/agy.exe'
+        codex = self.out / 'AppData/Local/Programs/Codex/resources/codex.exe'
+        for path in (native_claude, agy, codex):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch()
+        with mock.patch('pathlib.Path.home', return_value=self.out), \
+             mock.patch.dict('os.environ', {'LOCALAPPDATA': str(self.out / 'RedirectedLocal')}), \
+             mock.patch('agenthub.providers.shutil.which', return_value=None):
+            for provider, expected in [('claude', native_claude), ('antigravity', agy), ('codex', codex)]:
+                self.assertEqual(Path(self.manager._executable(provider, {})), expected)
+            self.assertIsNone(self.manager._executable('codex', {'executable': str(self.out / 'missing.exe')}))
+
+    def test_codex_registered_package_query_is_bounded_and_validated(self):
+        package = self.out / 'OpenAI.Codex_new_version'
+        binary = package / 'app/resources/codex.exe'
+        binary.parent.mkdir(parents=True)
+        binary.touch()
+        with mock.patch('agenthub.providers.subprocess.run', return_value=subprocess.CompletedProcess([], 0, json.dumps(str(package)))) as run:
+            self.assertEqual(Path(self.manager._codex_app_executable()), binary)
+            self.assertEqual(run.call_args.kwargs['timeout'], 4)
+            self.assertEqual(run.call_args.kwargs['stdin'], subprocess.DEVNULL)
+        for output in ('null', '{}', '"relative/path"', 'not json', 'x' * 32769):
+            with self.subTest(output=output[:30]), mock.patch('agenthub.providers.subprocess.run', return_value=subprocess.CompletedProcess([], 0, output)):
+                self.assertIsNone(self.manager._codex_app_executable())
+        with mock.patch('agenthub.providers.subprocess.run', side_effect=subprocess.TimeoutExpired('powershell', 4)):
+            self.assertIsNone(self.manager._codex_app_executable())
 
     def test_openai_local_key_optional_remote_required(self):
         self.manager.secret_getter = lambda name: None

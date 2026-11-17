@@ -2,6 +2,13 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.2.2 — 2026-11-17
+
+- Default installer setup now includes Claude Desktop, Claude Code, Codex and Antigravity, including missing first-profile MCP configurations. Existing settings, backups and conflicting entries are handled explicitly.
+- Codex TOML registration preserves unrelated text and supports a custom `CODEX_HOME`; connection setup is distinct from sign-in and successful host loading.
+- Provider discovery includes native per-user Claude installs and Codex's registered Windows app, avoiding a version-pinned executable path or dependence on a terminal's PATH. Worker restrictions and supported Codex CLI version remain unchanged.
+- README now lists all six verified directions with desktop versus CLI/direct-MCP provenance. Added actual Antigravity desktop → Claude/Codex evidence and retained model-identity limits.
+
 ## 0.2.1 — 2026-11-17
 
 - Run CLI model discovery in a fresh temporary directory rather than the Desktop host's application directory. This prevents protected host directories and their project context from affecting discovery.

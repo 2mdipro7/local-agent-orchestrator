@@ -339,7 +339,7 @@ class App(ttk.Frame):
     def _connections(self):
         page = self.pages["Connections"]
         self._heading(page, "Connect your lead assistant", "Any compatible MCP lead can use the Orchestrator: Codex, Claude, OpenCode and other clients with local MCP support.")
-        ttk.Label(page, text="Connect a detected Claude or Antigravity profile below, or export the connection for another compatible client. Each host must load this connection separately. Web-only services need a compatible local connector.",
+        ttk.Label(page, text="Configure Claude Desktop, Claude Code, Codex or Antigravity below. Missing configuration files are created. Each host must be installed, signed in and restarted separately. Other clients can use the exported connection; web-only services need a compatible local connector.",
                   wraplength=1000, style="Muted.TLabel").pack(anchor="w", pady=(0, 12))
         self.connection_box = self._text(page, height=6, editable=False)
         try:
@@ -366,7 +366,7 @@ class App(ttk.Frame):
             return
         entry = json.loads(self.connection_json)['mcpServers'][SERVER]
         targets = host_statuses(entry)
-        ttk.Button(self.host_frame, text="Refresh installed profiles", command=self._refresh_hosts).pack(anchor="w")
+        ttk.Button(self.host_frame, text="Refresh connection locations", command=self._refresh_hosts).pack(anchor="w")
         for target in targets:
             row = ttk.Frame(self.host_frame)
             row.pack(fill="x", pady=5)
@@ -380,9 +380,9 @@ class App(ttk.Frame):
         from .hosts import register_host, SERVER
         try:
             entry = json.loads(self.connection_json)['mcpServers'][SERVER]
-            register_host(target['path'], entry)
+            register_host(target['path'], entry, target['format'])
             self._refresh_hosts()
-            self.status.set('Connected ' + target['name'] + '. Fully quit and reopen that app to load its tools.')
+            self.status.set('Configured ' + target['name'] + '. Fully quit and reopen that app to load its tools.')
         except (ValueError, OSError) as exc:
             self._error('Connection was not changed', exc)
 

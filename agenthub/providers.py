@@ -153,17 +153,54 @@ class ProviderManager:
         found = shutil.which(name)
         if found:
             return found
-        local = os.environ.get('LOCALAPPDATA')
-        if local:
-            root = Path(local)
-            candidates = []
+        # Desktop hosts do not necessarily inherit the terminal's PATH. Search
+        # only known per-user install locations, never unrelated workspaces.
+        roots = list(dict.fromkeys([Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData/Local')),
+                                   Path.home() / 'AppData/Local']))
+        candidates = [Path.home() / '.local/bin/claude.exe'] if provider == 'claude' else []
+        for root in roots:
             if provider == 'antigravity':
-                candidates = [root / 'Packages/OpenAI.Codex_2p2nqsd0c76g0/LocalCache/Local/agy/bin/agy.exe', root / 'agy/bin/agy.exe']
+                candidates.extend([root / 'agy/bin/agy.exe', root / 'Packages/OpenAI.Codex_2p2nqsd0c76g0/LocalCache/Local/agy/bin/agy.exe'])
             elif provider == 'claude':
-                candidates = list((root / 'Microsoft/WinGet/Packages').glob('Anthropic.ClaudeCode_*/claude.exe')) + list((root / 'Microsoft/WinGet/Links').glob('claude*'))
-            for item in candidates:
-                if item.is_file():
-                    return str(item)
+                candidates.extend(sorted((root / 'Microsoft/WinGet/Packages').glob('Anthropic.ClaudeCode_*/claude.exe')))
+                candidates.append(root / 'Microsoft/WinGet/Links/claude.exe')
+            elif provider == 'codex':
+                candidates.extend([root / 'Programs/Codex/resources/codex.exe',
+                                   root / 'Programs/Codex/app/resources/codex.exe'])
+        for item in candidates:
+            if item.is_file():
+                return str(item)
+        if provider == 'codex' and os.name == 'nt':
+            return self._codex_app_executable()
+        return None
+
+    @staticmethod
+    def _codex_app_executable():
+        """Locate this user's registered Store app without a version-pinned path.
+
+        This read-only OS query does not launch Codex or access account data.
+        Version/tool confinement remains enforced by the worker adapter.
+        """
+        shell = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+        try:
+            result = subprocess.run([str(shell), '-NoProfile', '-NonInteractive', '-Command',
+                                     'Get-AppxPackage -Name OpenAI.Codex | Select-Object -ExpandProperty InstallLocation | ConvertTo-Json -Compress'],
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                    text=True, timeout=4, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), check=False)
+            if result.returncode or len(result.stdout) > 32768:
+                return None
+            locations = json.loads(result.stdout)
+            if isinstance(locations, str):
+                locations = [locations]
+            if not isinstance(locations, list):
+                return None
+            for location in locations:
+                if isinstance(location, str) and Path(location).is_absolute():
+                    candidate = Path(location) / 'app/resources/codex.exe'
+                    if candidate.is_file():
+                        return str(candidate)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            pass
         return None
 
     def _process(self, args, cwd, timeout, cancel_event=None):

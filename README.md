@@ -1,18 +1,35 @@
-# Local Agent Orchestrator — Version 0
+# Local Agent Orchestrator
 
-**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.1) · [MIT license](LICENSE)
+**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Download v0.2.2](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.2) · [MIT license](LICENSE)
 
 A per-user Windows coordinator that lets a compatible MCP host act as the lead and delegate bounded tasks to configured model providers. This preview has no public server, telemetry, automatic model download, startup service, or bundled credentials/model weights. It does not replace a model subscription.
 
 ## Install and start
 
-1. Download `LocalAgentOrchestrator-v0.2.1-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.1), run it and choose **Install for this user**. No administrator access is needed.
+1. Download `LocalAgentOrchestrator-v0.2.2-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.2), run it and choose **Install for this user**. Keep the connection option enabled to configure **Claude Desktop, Claude Code, Codex and Antigravity** for your Windows profile. Missing configuration files are created; existing settings are preserved. No administrator access is needed.
 2. Open **Local Agent Orchestrator** from the Start menu. For portable use, keep LocalAgentOrchestrator.exe and LocalAgentOrchestratorMCP.exe together.
 3. Start your existing local model server, or configure a provider in Settings. Refresh Models. Listed candidates and successful inference are different evidence.
 4. Choose the exact provider/model, a task folder and specific prompt. Attach only relevant text/image sources. The app never silently uploads a whole folder.
 5. Cloud/API/subscription use requires the per-task authorization checkbox. This is consent to use your own configured account, not a hard price cap. No API key is included.
 6. Review actual output. Execution success remains pending until the lead records criterion evidence and boundary findings.
-7. Connect detected Claude Desktop, Claude Code or Antigravity profiles during installation or from Connections. Fully quit and reopen the host. For other leads, export connection JSON and adapt it using HOST-CONNECTIONS.md. Any host must support local stdio MCP; a web-only chat without a local connector cannot invoke this executable directly.
+7. Fully quit and reopen Claude, Codex and Antigravity after setup, then ask the lead to call `hub_status` and `list_models`. Settings alone do not prove a live connection. **Connections** can repeat setup if an app later creates or migrates its profile. See [host setup and troubleshooting](HOST-CONNECTIONS.md). A web-only chat without a local connector cannot invoke this executable directly.
+
+The installer configures local MCP connections; it does **not** install the provider apps, sign you in, supply subscriptions/API credits or download models. To use subscribed workers, install and sign in to the relevant Claude Code, Codex or Antigravity CLI. Desktop sign-in alone may not sign in its CLI. **Codex worker execution currently supports only CLI `0.169.0-alpha.11.1`, with its model cache and ChatGPT sign-in**; other versions fail before inference. Codex can still be a compatible MCP lead independently of that worker-version restriction. Supported locations are discovered without copying credentials or changing PATH. Fresh-profile setup is tested in disposable directories; a separate clean customer PC has not been verified.
+
+## Verified lead → worker routes
+
+All six directions below completed synthetic tasks, returned actual artifacts and received independent lead review on the maintainer's Windows PC. This is route verification, not a benchmark or a guarantee for every account/model/version. The latest live runs used 0.2.0/0.2.1; 0.2.2 changes setup and discovery, not inference restrictions.
+
+| Lead → worker | Verified lead surface | Worker selected | Result |
+|---|---|---|---|
+| Claude → Codex | **Claude Desktop**, installed MCP 0.2.1; also CLI harness | `gpt-6-luna` | Passed; desktop job 9.19 s |
+| Claude → Antigravity | **Claude Desktop**, installed MCP 0.2.1; also CLI harness | `gemini-3.8-flash-medium` | Passed; desktop job 17.29 s |
+| Antigravity → Claude | **Standalone Antigravity desktop**, installed MCP 0.2.1; also CLI harness | `claude-haiku-5-5` | Passed; desktop job 7.04 s |
+| Antigravity → Codex | **Standalone Antigravity desktop**, installed MCP 0.2.1; also CLI harness | `gpt-6-luna` | Passed; desktop job 9.12 s |
+| Codex → Claude | Codex assistant operating a direct MCP client through its shell tool, frozen MCP 0.2.0 | `claude-haiku-5-5` | Passed |
+| Codex → Antigravity | Codex assistant operating a direct MCP client through its shell tool, frozen MCP 0.2.0 | `gemini-3.8-flash-medium` | Passed |
+
+The Codex rows do not claim an autonomous Codex CLI lead or a native Codex tool-discovery UI test. Claude and Antigravity desktop runs verified status, discovery, submission, polling and artifact retrieval without the reported timeout. Claude reported its generation model; Codex and Antigravity workers did not, so selected models remain distinct from observed identity. See [task IDs, exact outputs, timings and test limits](TEST-RESULTS.md). Connected leads choose models and review results; response-only workers cannot recursively delegate or approve themselves.
 
 ## Provider support
 
@@ -42,7 +59,7 @@ Image understanding and image generation are different. Ollama vision models ana
 
 ## Open-source release
 
-Version **0.0.0** was the first public release, called **Version 0**. Version **0.2.0** adds restricted Codex and Antigravity workers. Version **0.2.1** fixes Desktop discovery startup and verifies actual Claude Desktop delegation to both workers; see TEST-RESULTS.md. Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+Version **0.0.0** was the first public release, called **Version 0**. **0.2.0** added restricted Codex and Antigravity workers; **0.2.1** fixed Desktop discovery startup. **0.2.2** adds default first-profile registration for Claude, Codex and Antigravity and more reliable provider discovery. See [validation history](TEST-RESULTS.md) and [changelog](CHANGELOG.md). Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 Codex worker restrictions currently support CLI `0.169.0-alpha.11.1` and require its existing model cache and ChatGPT sign-in. Other versions stop before inference until their controls are verified. Antigravity uses documented pre-tool denial hooks plus session-only deny rules; its tools may remain visible but calls are blocked. These are application controls under the same user account. Existing host authentication, state and owner-configured lifecycle hooks are distinct from model-requested tools and may still operate. No OS or tenant isolation is claimed.
 
@@ -80,7 +97,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CHANGELOG.m
 Installed program: %LOCALAPPDATA%\Programs\LocalAgentOrchestrator
 User jobs/settings/encrypted keys: %LOCALAPPDATA%\LocalAgentOrchestrator\data
 
-Remove the app using Windows Installed apps. Uninstall preserves user data. Removing that data and encrypted keys is a separate deliberate user action. The installer does not edit PATH, firewall rules or startup entries. Its optional host connection step adds one MCP entry with a backup. Uninstall preserves host entries and backups; remove the entry in the host when retiring the app.
+Remove the app using Windows Installed apps. Uninstall preserves user data. Removing that data and encrypted keys is a separate deliberate user action. The installer does not edit PATH, firewall rules or startup entries. Its default-enabled host connection step adds one MCP entry per host and backs up existing configurations. Conflicting entries remain unchanged and are reported. Uninstall preserves host entries and backups; remove the entry in the host when retiring the app.
 
 ### Earlier private preview
 

@@ -2,7 +2,30 @@
 
 [Local Agent Orchestrator](https://github.com/2mdipro7/local-agent-orchestrator) · Created by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Date: 16 November 2026 (Asia/Dhaka). Version: 0.0.0.
+Last updated: 17 November 2026 (Asia/Dhaka). Current release: 0.2.2. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the 0.2.x results.
+
+## Version 0.2.2 setup checks — 17 November 2026
+
+70 automated tests: **69 passed, 1 skipped** for the existing Windows source-link creation privilege limitation. New host tests cover four fresh-profile targets, custom `CODEX_HOME`, missing JSON/TOML files, preservation of unrelated TOML bytes/comments and JSON settings, exact-byte backups, repeat setup, invalid/duplicate/conflicting configurations, active/migrated Claude profiles, ignoring stale remnants, a competing new-file writer, per-host failure isolation and live-harness compatibility. The host symlink refusal test uses a simulation when Windows cannot create a real link; that does not certify a real link on this machine.
+
+The Windows GUI and MCP executables were built and smoke-tested. The installer setup functions copied the actual frozen payload into a disposable install directory and created all four configurations under an empty synthetic Windows profile. Each saved command started the copied MCP executable and returned version **0.2.2**. The frozen server exposed nine tools; GUI startup/exit, connection export and idempotent registration passed. This checks the installer logic and packaged server handshake, not the four host applications' own first-run migration behavior. No real host profile or registry was changed by this check, and no inference was requested.
+
+Provider discovery tests cover known native install paths, a redirected Desktop environment, the bounded Windows Codex package-location query, malformed/unavailable package responses and explicit invalid-path refusal. A read-only check on the maintainer's PC found all three installed CLIs with terminal PATH lookup suppressed and no saved per-machine executable settings. Provider sign-ins, supported CLI versions and model access remain prerequisites. No fresh inference is attributed to 0.2.2; the live route evidence below used 0.2.0/0.2.1, whose inference restrictions are unchanged.
+
+No independent clean customer PC was available. An optional temporary-profile `codex mcp add` check was rejected before execution by automatic policy review and was not retried; native Codex CLI registration/first-run loading is therefore not claimed as a live test. A narrow existing-file check-to-replace race remains; close hosts during setup. Host templates may need refreshing after an app creates or migrates its profile. No provider software, credentials or model weights are bundled.
+
+## Antigravity desktop verification — 17 November 2026
+
+The standalone Antigravity app, with Gemini 4 Hydrogen Medium selected in its UI, used the **installed 0.2.1 orchestrator** in an isolated empty project. The actual desktop conversation called `hub_status`, `list_models`, `list_tasks`, two `submit_task` calls, `get_task` and `read_artifact`. Both completed jobs were retrieved on the first status poll, without a timeout. No terminal harness submitted these jobs.
+
+| Desktop lead's worker | Task ID | Actual response line | Job elapsed |
+|---|---|---|---|
+| Claude `claude-haiku-5-5` | `5c62591da728425a8e3f9d62455fae55` | `AGY_DESKTOP_CLAUDE=42` | 7.04 s |
+| Codex `gpt-6-luna` | `4ab460c51c6540f2942536131d009906` | `AGY_DESKTOP_CODEX=42` | 9.12 s |
+
+Codex independently read effective_prompt.txt, result.json and response.md, calculated 17+25 and 28+14, inspected adapter restrictions, compared the installed executable hash with the 0.2.1 build and recorded accepted reviews through MCP. The workspace stayed empty; no source/image attachments were sent. The desktop lead prompt was 5,127 characters; assembled worker prompts were 1,564 and 1,556 characters. Elapsed values are persisted creation-to-completion times, not individual MCP latency measurements.
+
+Claude reported `claude-haiku-5-5`; Codex reported no independent generation identity or usage, and that warning is preserved. The desktop lead correctly left acceptance pending for independent review and disclosed that artifact text alone cannot audit tool restrictions. Root's review also inspected the adapter validation that rejects tool/action events. Raw provider event transcripts are not retained. This was a synthetic response-only integration test, not a new adversarial security test or an OS-wide isolation audit. No provider credentials, permissions or billing settings were changed; no active jobs remained.
 
 ## Version 0.2.1 Desktop verification — 17 November 2026
 

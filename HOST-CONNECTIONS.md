@@ -1,12 +1,25 @@
 # Connect a lead agent
 
-## One-time Claude and Antigravity setup
+## One-time Claude, Codex and Antigravity setup
 
-The installer can connect existing Claude Desktop, Claude Code and Antigravity profiles. In the app, **Connections → Connect** performs the same setup. Other settings are preserved, an adjacent backup is created, and conflicting entries are never overwritten. Fully quit and reopen the host after setup. Configuration alone is not a successful handshake.
+The 0.2.2 installer configures **Claude Desktop, Claude Code, Codex and Antigravity** by default. Keep **Configure Claude Desktop, Claude Code, Codex and Antigravity** checked. Missing configuration files are created, so an empty profile is not silently skipped. The completion dialog reports each host's outcome. In the app, **Connections → Connect** performs the same setup for a selected host.
+
+| Host | Configuration written for the current Windows user |
+|---|---|
+| Claude Desktop | Existing active migrated/MSIX profile; otherwise `%APPDATA%/Claude/claude_desktop_config.json` |
+| Claude Code | `%USERPROFILE%/.claude.json`, `mcpServers.local-agent-orchestrator` |
+| Codex desktop / CLI | `%CODEX_HOME%/config.toml` when set, otherwise `%USERPROFILE%/.codex/config.toml`; `mcp_servers."local-agent-orchestrator"` |
+| Antigravity desktop / CLI | `%USERPROFILE%/.gemini/config/mcp_config.json`, `mcpServers.local-agent-orchestrator` |
+
+Close hosts before setup to avoid concurrent settings writes. Existing JSON settings are preserved; Codex TOML text and comments remain byte-for-byte before the appended entry. Existing files receive adjacent original-byte backups; repeat setup with the same entry makes no new backup. A conflicting, malformed or linked configuration is left unchanged and reported. New files are installed without overwriting a file created concurrently. Existing-file replacement checks for observed concurrent changes but cannot lock every host writer.
+
+Fully quit and reopen the hosts after setup. Ask each lead to call `hub_status` and check version `0.2.2`, then call `list_models`. Configuration alone is not a successful handshake. If an app installed later creates or migrates its own profile, rerun setup or use Connections. Empty-profile tests are automated; a separate clean customer PC has not been certified.
 
 Antigravity uses global `~/.gemini/config/mcp_config.json`; an empty initial file can be initialized with a backup. This applies across projects using that profile. See [Google's MCP reference](https://antigravity.google/docs/mcp/). Lead connections and restricted worker execution use separate settings.
 
-Desktop discovery supports classic `%APPDATA%/Claude`, MSIX redirected profiles, and migrated `%LOCALAPPDATA%/Claude-Data/<profile>` configurations. It only modifies existing valid profiles: launch Claude once if none is found. Claude Code uses its user configuration, so the connection applies across projects. If a host already connects to an earlier private orchestrator plugin, keep one deliberate connection rather than adding duplicate tool sets.
+Desktop discovery supports classic `%APPDATA%/Claude`, MSIX redirected profiles, and migrated `%LOCALAPPDATA%/Claude-Data/<profile>` configurations. Existing app-state markers can identify profiles whose MCP file is not yet present; empty migration remnants are ignored. A completely fresh profile uses the classic location. Claude Code uses its user configuration, so the connection applies across projects. If a host already connects to an earlier private orchestrator plugin under another name, retain one deliberate connection; automatic setup does not remove another plugin or arbitrary alias.
+
+Install the host applications and required CLIs yourself and sign in to your own accounts. The installer supplies no provider executables, credentials, subscriptions or model weights. Claude and Antigravity workers need their corresponding CLI sign-ins. Codex workers additionally require verified CLI `0.169.0-alpha.11.1` and its model cache; other versions fail before inference. A host's ability to lead is separate from its CLI's ability to serve as a worker. API-key users can configure the supported API providers separately; CLI workers do not silently consume API-key environment variables.
 
 Host backups remain beside their original files and can contain private host settings. Keep them private. Uninstall currently preserves these connection entries and backups; remove `local-agent-orchestrator` from the host when retiring the app.
 
@@ -23,7 +36,7 @@ Replace <MCP_EXE> with the absolute installed path to LocalAgentOrchestratorMCP.
 ## Codex TOML
 
 ```toml
-[mcp_servers.local_agent_orchestrator]
+[mcp_servers."local-agent-orchestrator"]
 command = 'C:\Users\YOUR_PROFILE\AppData\Local\Programs\LocalAgentOrchestrator\LocalAgentOrchestratorMCP.exe'
 args = []
 ```
@@ -34,7 +47,7 @@ args = []
 {"mcp":{"servers":{"local-agent-orchestrator":{"type":"local","command":["<MCP_EXE>"],"disabled":false}}}}
 ```
 
-Host formats can change. Codex and OpenCode use the explicit examples above; automatic profile editing supports existing Claude Desktop, Claude Code and Antigravity configurations. The same executable can be configured in Hermes:
+Host formats can change. Codex registration is automatic in 0.2.2; the TOML example is for manual inspection or recovery. Its global settings are shared by the app and CLI; see [OpenAI's MCP setup documentation](https://developers.openai.com/learn/docs-mcp). OpenCode and Hermes remain manual configurations. The same executable can be configured in Hermes:
 
 ```yaml
 mcp_servers:
@@ -45,7 +58,7 @@ mcp_servers:
 
 [Hermes MCP documentation](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/mcp.md) describes configured-server tool discovery. This project follows the same distinction: connecting the lead to MCP and making a model callable are separate steps. There is no automatic access to every installed subscription. Hermes itself is not a tested worker adapter here.
 
-Claude Desktop 5.11492.5 and Claude Code were verified connected on the maintainer's Windows profile on 2026-11-17. This does not certify every version or customer installation. ChatGPT web needs a supported local bridge; it cannot directly launch a local stdio executable.
+Claude Desktop 5.11492.5 and the standalone Antigravity desktop app each delegated to both other workers through installed MCP 0.2.1 on 2026-11-17. Claude Code/Antigravity CLI lead routes also passed. Codex assistant routes used a direct MCP client, not a native tool-discovery UI test. See [the exact route matrix](README.md#verified-lead--worker-routes) and [validation history](TEST-RESULTS.md). This does not certify every version or customer installation. ChatGPT web needs a supported local bridge; it cannot directly launch a local stdio executable.
 
 ## Bidirectional capability limits
 
@@ -53,7 +66,7 @@ Claude Desktop 5.11492.5 and Claude Code were verified connected on the maintain
 
 A host can retain its old executable path and process after its configuration changes. A saved connection is not proof that the running host loaded it. Fully quit and reopen the host after an upgrade. `hub_status` reports the active version and executable path in current builds.
 
-Desktop hosts may have a different command search path from your terminal. If a CLI is installed but reported unavailable, set its absolute executable path in the provider settings. Model discovery in 0.2.1 uses a fresh temporary directory, independent of the host's launch directory.
+Desktop hosts may have a different command search path from your terminal. Version 0.2.2 searches known per-user CLI locations and queries the current user's registered Codex Windows app without hard-coding its version. It neither changes PATH nor signs into accounts. For nonstandard installs, the provider's `executable` property in the local `settings.json` can specify an absolute path; an invalid explicit path is not silently replaced. Model discovery uses a fresh temporary directory, independent of the host's launch directory.
 
 Model discovery runs in a separate thread with concurrent, bounded provider probes; history and status do not wait for it. Offline Ollama and LM Studio are reported unavailable. You do not need to start a local model server to use Claude, Codex or Antigravity. Do not keep retrying an unresponsive connection or submit a guessed local model: reconnect first and check its actual status.
 
