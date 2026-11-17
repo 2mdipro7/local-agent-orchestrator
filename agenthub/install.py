@@ -36,7 +36,7 @@ def install_to(destination=None, *, payload_app=None, payload_worker=None, regis
             temporary = target / (filename + ".new")
             shutil.copy2(source, temporary)
             os.replace(temporary, destination_file)
-    for filename in ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "assets/README.md", "assets/architecture-banner.png"):
+    for filename in ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "assets/README.md", "assets/architecture-banner.png", "assets/download-windows.svg"):
         document = resource / "resources" / filename
         if not document.is_file():
             document = resource / filename

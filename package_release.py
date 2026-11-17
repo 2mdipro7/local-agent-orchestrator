@@ -17,7 +17,7 @@ def main():
     documents = ["README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt",
                  "TEST-RESULTS.md", "CHANGELOG.md", "AUTHORS.md", "SECURITY.md",
                  "SECOND-PC-TEST.md", "CONTRIBUTING.md", "assets/README.md",
-                 "assets/architecture-banner.png"]
+                 "assets/architecture-banner.png", "assets/download-windows.svg"]
     payload = [root / "dist/LocalAgentOrchestrator.exe", root / "dist/LocalAgentOrchestratorMCP.exe"]
     payload.extend(root / name for name in documents)
     for file in payload:
