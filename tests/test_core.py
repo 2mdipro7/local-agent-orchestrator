@@ -56,10 +56,19 @@ class HubTests(unittest.TestCase):
             self.assertTrue(hub.config['providers']['codex']['enabled'])
             self.assertEqual(hub.config['timeout_seconds'], 90)
 
-    def test_codex_worker_rejected_before_job_creation(self):
-        with self.assertRaisesRegex(ValueError, 'not callable workers'):
-            self.hub.submit_task('codex', 'gpt-6.1-sol', 'Test only', self.workspace, allow_cloud=True)
+    def test_cloud_workers_require_authorization_and_preserve_review(self):
+        for provider in ('codex', 'antigravity', 'claude'):
+            with self.assertRaisesRegex(ValueError, 'cloud authorization'):
+                self.hub.submit_task(provider, 'synthetic', 'Test only', self.workspace)
         self.assertEqual(self.hub.list_tasks(), [])
+        for provider in ('codex', 'antigravity', 'claude'):
+            task = self.wait(self.hub.submit_task(provider, 'synthetic', 'Test only', self.workspace,
+                                                allow_cloud=True, lead_id='independent-lead')['id'])
+            self.assertEqual(task['status'], 'succeeded')
+            self.assertEqual(task['provider'], provider)
+            self.assertEqual(task['lead_id'], 'independent-lead')
+            self.assertTrue(task['cloud_authorized'])
+            self.assertEqual(task['review_status'], 'pending')
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

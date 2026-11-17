@@ -2,6 +2,14 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.2.0 — 2026-11-17
+
+- Restricted Codex workers use the existing ChatGPT CLI sign-in, a temporary capability-narrowed model catalog, disabled external-tool inventory and ephemeral sessions. Execution is limited to the verified CLI version; no credential copying or API fallback.
+- Antigravity workers use documented print mode, constant-output pre-tool deny hooks and session-only sensitive-action denies. Hooks work in the Windows executable without Python installed. Rejected tool attempts cannot be treated as successful responses.
+- Both adapters preserve selected versus provider-observed model identity and bound process cleanup. Existing host lifecycle behavior remains subject to host policy; this is not OS isolation.
+- Status includes the active server version and executable path. Regression checks cover status and history responding while model discovery is blocked.
+- An opt-in interoperability harness tests each of the six lead-to-worker directions with explicit cloud authorization, synthetic inputs, artifact retrieval and separate lead review.
+
 ## 0.1.1 — 2026-11-17
 
 - Model discovery runs independently of history, with concurrent probes, a shared 12-second deadline, 30-second cache and no duplicate in-flight probes.

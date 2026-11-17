@@ -13,6 +13,18 @@ PNG = b'\x89PNG\r\n\x1a\nexample'
 
 
 class ProviderTests(unittest.TestCase):
+    def test_codex_routes_only_to_restricted_adapter_and_rejects_images(self):
+        manager = ProviderManager({'providers': {'codex': {'enabled': True}}}, lambda _: None)
+        expected = {'text': 'synthetic', 'observed_model': None, 'warnings': ['identity unknown']}
+        with mock.patch.object(manager, '_executable', return_value='codex.exe'), \
+             mock.patch('agenthub.codex_worker.generate', return_value=expected) as generate, \
+             mock.patch.object(manager, '_http') as http:
+            self.assertEqual(manager.generate('codex', 'exact', 'specific', output_dir=self.out), expected)
+            generate.assert_called_once_with('codex.exe', 'exact', 'specific', self.out, 120, None)
+            with self.assertRaisesRegex(ProviderError, 'Image input unsupported'):
+                manager.generate('codex', 'exact', 'specific', output_dir=self.out, images=['unused.png'])
+            http.assert_not_called()
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

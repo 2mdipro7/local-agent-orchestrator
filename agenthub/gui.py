@@ -19,8 +19,8 @@ from tkinter import filedialog, messagebox, ttk
 PROVIDER_LABELS = {
     "ollama": "Ollama", "lmstudio": "LM Studio",
     "openai_compatible": "OpenAI-compatible API", "gemini": "Google Gemini API",
-    "claude": "Claude Code", "antigravity": "Antigravity (lead and model discovery)",
-    "opencode": "OpenCode", "codex": "Codex (model discovery only)",
+    "claude": "Claude Code", "antigravity": "Antigravity",
+    "opencode": "OpenCode", "codex": "Codex",
 }
 DEFAULT_URLS = {
     "ollama": "http://127.0.0.1:11434",
@@ -496,9 +496,9 @@ class App(ttk.Frame):
             return self._warning("Shorten this prompt", "The prompt exceeds 8,000 characters. Guardrails and attachments need space within that limit too.")
         if self.kind.get() == "image" and self.provider.get() not in ("gemini", "openai_compatible"):
             return self._warning("Choose an image-capable provider", "Image generation in this preview uses Gemini or an image-capable OpenAI-compatible endpoint. Choose a model that supports image output.")
-        if self.images and self.provider.get() in ("claude", "antigravity", "opencode"):
+        if self.images and self.provider.get() in ("claude", "antigravity", "codex", "opencode"):
             return self._warning("Image input is unavailable", "Image attachments are not supported by this subscription-tool adapter. Choose a provider with image input or remove the images.")
-        if self.provider.get() in ("gemini", "openai_compatible", "claude", "antigravity", "opencode") and not self.allow_cloud.get():
+        if self.provider.get() in ("gemini", "openai_compatible", "claude", "antigravity", "codex", "opencode") and not self.allow_cloud.get():
             return self._warning("This task needs cloud consent", "This provider sends task data outside this PC and may use your account allowance or incur charges. Enable the task-specific cloud checkbox to submit.")
         try:
             result = self.hub.submit_task(self.provider.get(), self.model.get(), prompt, self.workspace.get().strip(),

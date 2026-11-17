@@ -1,6 +1,8 @@
 import io
 import json
 import unittest
+import tempfile
+import os
 from unittest.mock import patch
 
 from agenthub import codex_worker as worker
@@ -43,7 +45,7 @@ class CodexDiscoveryTests(unittest.TestCase):
         out += reply(4, {'data': [{'id': 'x', 'model': 'second', 'displayName': 'Second'}], 'nextCursor': None})
         records, requests, popen = self.run_discovery(out)
         self.assertEqual([r['id'] for r in records], ['request-model', 'second'])
-        self.assertEqual(records[0]['status'], 'discovery_only')
+        self.assertEqual(records[0]['status'], 'unverified')
         self.assertEqual(requests[0]['method'], 'initialize')
         self.assertEqual(requests[1], {'method': 'initialized'})
         self.assertEqual(requests[2]['params'], {'refreshToken': False})
@@ -79,10 +81,65 @@ class CodexDiscoveryTests(unittest.TestCase):
         proc.kill.assert_called_once()
         proc.wait.assert_called_once_with(timeout=2)
 
+    def test_catalog_narrows_only_tool_capabilities(self):
+        original = {'slug': 'chosen', 'context_window': 1000, 'other': {'x': 1},
+                    'tool_mode': 'code_mode_only', 'shell_type': 'unified_exec',
+                    'apply_patch_tool_type': 'freeform', 'experimental_supported_tools': ['x'],
+                    'supports_search_tool': True}
+        result = worker.narrowed_catalog([original], 'chosen')['models'][0]
+        self.assertEqual(result['slug'], 'chosen')
+        self.assertEqual(result['context_window'], 1000)
+        self.assertEqual((result['tool_mode'], result['shell_type'], result['apply_patch_tool_type']),
+                         ('direct', 'disabled', None))
+        self.assertEqual(result['experimental_supported_tools'], [])
+        self.assertFalse(result['supports_search_tool'])
+        self.assertEqual(original['shell_type'], 'unified_exec')
+        with self.assertRaises(ProviderError):
+            worker.narrowed_catalog([original, original], 'chosen')
+
+    def test_startup_restrictions_are_child_only_and_validate_names(self):
+        args = worker.restricted_server_args('codex', 'C:/tmp/catalog.json', ['alpha', 'beta'])
+        for flag in ['cloud.skills.enabled=false', 'orchestrator.mcp.enabled=false',
+                     'agents.enabled=false', 'mcp_servers.alpha.enabled=false']:
+            self.assertIn(flag, args)
+        self.assertIn('goals', args)
+        self.assertNotIn('--ignore-rules', args)
+        with self.assertRaises(ProviderError):
+            worker.restricted_server_args('codex', 'catalog', ['bad.name'])
+
+    def test_rpc_turn_success_failure_and_forbidden_action(self):
+        from types import SimpleNamespace
+        def event(method, params):
+            return (json.dumps({'method': method, 'params': params}) + '\n').encode()
+        def run_case(model='chosen', terminal='completed', tool=False):
+            out = reply(1, {}) + reply(2, {'account': {'type': 'chatgpt'}})
+            out += reply(3, {'model': model, 'modelProvider': 'openai', 'thread': {'id': 'thread'}})
+            out += reply(4, {'data': [], 'nextCursor': None})
+            out += reply(5, {'turn': {'id': 'turn'}})
+            if tool:
+                out += event('item/started', {'item': {'type': 'commandExecution'}})
+            else:
+                out += event('item/completed', {'item': {'type': 'agentMessage', 'text': 'READY', 'phase': 'final_answer'}})
+                out += event('turn/completed', {'threadId': 'thread', 'turn': {'id': 'turn', 'status': terminal, 'error': None}})
+            proc = Process(out)
+            with tempfile.TemporaryDirectory() as tmp:
+                with open(os.path.join(tmp, 'models_cache.json'), 'w', encoding='utf-8') as f:
+                    json.dump({'models': [{'slug': 'chosen'}]}, f)
+                with patch.dict(os.environ, {'CODEX_HOME': tmp}), patch.object(worker.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout=b'codex-cli 0.169.0-alpha.11.1')), patch.object(worker, '_list_server_names', return_value=[]), patch.object(worker.subprocess, 'Popen', return_value=proc), patch.object(worker, '_stop', side_effect=lambda p: p.wait()):
+                    return worker.generate('codex', 'chosen', 'Reply READY', tmp, timeout=1)
+        self.assertEqual(run_case()['text'], 'READY')
+        self.assertIsNone(run_case()['observed_model'])
+        with self.assertRaisesRegex(ProviderError, 'mismatch'):
+            run_case(model='other')
+        with self.assertRaisesRegex(ProviderError, 'turn failed'):
+            run_case(terminal='failed')
+        with self.assertRaisesRegex(ProviderError, 'attempted'):
+            run_case(tool=True)
+
     def test_generation_never_spawns_and_cancel(self):
         with patch.object(worker.subprocess, 'Popen') as popen:
-            with self.assertRaisesRegex(ProviderError, 'response-only'):
-                worker.generate('codex', 'model', 'prompt', '.')
+            with self.assertRaisesRegex(ProviderError, 'Invalid'):
+                worker.generate('codex', 'model', 'x' * 8001, '.')
             class Cancel:
                 def is_set(self): return True
             with self.assertRaisesRegex(ProviderError, 'cancelled'):

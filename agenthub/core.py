@@ -245,10 +245,6 @@ class Hub:
             raise ValueError("Choose an enabled provider")
         if provider == "opencode":
             raise ValueError("OpenCode can be a lead via MCP. Its worker execution is discovery-only until a supported tool-denial policy is verified.")
-        if provider == "codex":
-            raise ValueError("Codex can be a lead via MCP. Its discovered models are not callable workers yet: comprehensive response-only tool restrictions have not been verified.")
-        if provider == "antigravity":
-            raise ValueError("Antigravity can lead via MCP. Worker execution is temporarily disabled: the installed tool filter needs further verification.")
         if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/@+\-]{0,255}", model):
             raise ValueError("Choose an exact model identifier")
         if model.startswith("claude-fable"):

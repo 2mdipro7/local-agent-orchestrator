@@ -22,16 +22,20 @@ class DiscoveryTests(unittest.TestCase):
     def test_blocked_probe_does_not_block_task_history_or_start_duplicates(self):
         entered, release = threading.Event(), threading.Event()
         class Hub:
+            home = 'synthetic'
+            config = {'providers': {}}
             def discover_models(self):
                 entered.set()
                 release.wait(3)
                 return []
             def list_tasks(self):
                 return []
+            def hardware_info(self):
+                return {'logical_processors': 1}
         class Sink(io.StringIO):
             def write(self, text):
                 result = super().write(text)
-                if json.loads(text).get('id') == 3:
+                if json.loads(text).get('id') == 4:
                     release.set()
                 return result
         def request(i, name):
@@ -41,11 +45,15 @@ class DiscoveryTests(unittest.TestCase):
             self.assertTrue(entered.wait(1))
             yield request(2, 'list_models')
             yield request(3, 'list_tasks')
+            yield request(4, 'hub_status')
         sink = Sink()
         serve(Hub(), source(), sink)
         results = [json.loads(x) for x in sink.getvalue().splitlines()]
-        self.assertEqual([r['id'] for r in results], [2, 3, 1])
+        self.assertEqual([r['id'] for r in results], [2, 3, 4, 1])
         self.assertTrue(results[0]['result']['isError'])
+        status = json.loads(results[2]['result']['content'][0]['text'])
+        self.assertEqual(status['active_tasks'], 0)
+        self.assertIn('version', status)
 
     def test_provider_timeout_partial_results_and_probe_reuse(self):
         manager = ProviderManager({'providers': {'fast': {'enabled': True}, 'slow': {'enabled': True}}}, lambda _: None)

@@ -4,7 +4,7 @@
 
 The installer can connect existing Claude Desktop, Claude Code and Antigravity profiles. In the app, **Connections → Connect** performs the same setup. Other settings are preserved, an adjacent backup is created, and conflicting entries are never overwritten. Fully quit and reopen the host after setup. Configuration alone is not a successful handshake.
 
-Antigravity uses global `~/.gemini/config/mcp_config.json`; an empty initial file can be initialized with a backup. This applies across projects using that profile. See [Google's MCP reference](https://antigravity.google/docs/mcp/). Connecting the lead does not enable the currently gated Antigravity worker adapter.
+Antigravity uses global `~/.gemini/config/mcp_config.json`; an empty initial file can be initialized with a backup. This applies across projects using that profile. See [Google's MCP reference](https://antigravity.google/docs/mcp/). Lead connections and restricted worker execution use separate settings.
 
 Desktop discovery supports classic `%APPDATA%/Claude`, MSIX redirected profiles, and migrated `%LOCALAPPDATA%/Claude-Data/<profile>` configurations. It only modifies existing valid profiles: launch Claude once if none is found. Claude Code uses its user configuration, so the connection applies across projects. If a host already connects to an earlier private orchestrator plugin, keep one deliberate connection rather than adding duplicate tool sets.
 
@@ -49,7 +49,13 @@ Claude Desktop 5.11492.5 and Claude Code were verified connected on the maintain
 
 ## Bidirectional capability limits
 
-Claude, Codex and Antigravity can lead through MCP and call implemented providers. Live Antigravity→Claude execution and Claude read access were tested. Codex's catalog is discoverable, but its worker generation remains disabled pending verified response-only restrictions. Antigravity workers are temporarily disabled after an inconclusive containment test; OpenCode remains discovery-only. A discovered model does not prove callable access. No credentials are copied and no paid-API fallback is selected automatically.
+### When a running server stops answering
+
+A host can retain its old executable path and process after its configuration changes. A saved connection is not proof that the running host loaded it. Fully quit and reopen the host after an upgrade. `hub_status` reports the active version and executable path in current builds.
+
+Model discovery runs in a separate thread with concurrent, bounded provider probes; history and status do not wait for it. Offline Ollama and LM Studio are reported unavailable. You do not need to start a local model server to use Claude, Codex or Antigravity. Do not keep retrying an unresponsive connection or submit a guessed local model: reconnect first and check its actual status.
+
+Claude, Codex and Antigravity can lead through MCP and call their restricted worker adapters. See TEST-RESULTS.md for the exact directions and versions tested. Codex worker execution currently requires verified CLI `0.169.0-alpha.11.1`, its model cache and existing ChatGPT sign-in. OpenCode remains discovery-only. A discovered model does not prove callable access. No credentials are copied and no paid-API fallback is selected automatically. Workers return responses to their lead; they cannot recursively delegate or approve their own output. The same app can lead in a separate authorized session.
 
 ## Lead operating brief
 

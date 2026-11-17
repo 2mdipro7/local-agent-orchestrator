@@ -278,7 +278,7 @@ class ProviderManager:
                         continue
                     mid, display = (part.strip() for part in columns)
                     if mid and display and ' ' not in mid:
-                        result.append(record(mid, display, status='discovery_only'))
+                        result.append(record(mid, display, status='unverified'))
                 return result
             # CLI output may be JSON or newline-separated model IDs.
             try:
@@ -299,11 +299,11 @@ class ProviderManager:
             raise ProviderError('Unsupported task kind')
         if task_kind == 'image' and provider not in ('openai_compatible', 'gemini'):
             raise ProviderError('Image generation unsupported by provider')
-        if images and provider in ('claude', 'antigravity', 'opencode'):
+        if images and provider in ('claude', 'antigravity', 'codex', 'opencode'):
             raise ProviderError('Image input unsupported by provider')
         _cancel(cancel_event)
         result = {'text': '', 'artifacts': [], 'observed_model': None, 'usage': {}, 'warnings': []}
-        if provider in ('claude', 'antigravity', 'opencode'):
+        if provider in ('claude', 'antigravity', 'codex', 'opencode'):
             if provider == 'opencode':
                 raise ProviderError('OpenCode execution unavailable: tool denial cannot be verified')
             exe = self._executable(provider, cfg)
@@ -311,6 +311,9 @@ class ProviderManager:
                 raise ProviderError('Provider executable unavailable')
             if provider == 'antigravity':
                 from .antigravity_worker import generate
+                return generate(exe, model, prompt, output_dir, timeout, cancel_event)
+            if provider == 'codex':
+                from .codex_worker import generate
                 return generate(exe, model, prompt, output_dir, timeout, cancel_event)
             args = [exe, '--model', model, '-p', prompt, '--tools', '', '--max-turns', '1',
                     '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}',

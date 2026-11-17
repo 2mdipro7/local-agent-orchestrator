@@ -1,12 +1,12 @@
 # Local Agent Orchestrator — Version 0
 
-**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.1.1) · [MIT license](LICENSE)
+**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.0) · [MIT license](LICENSE)
 
 A per-user Windows coordinator that lets a compatible MCP host act as the lead and delegate bounded tasks to configured model providers. This preview has no public server, telemetry, automatic model download, startup service, or bundled credentials/model weights. It does not replace a model subscription.
 
 ## Install and start
 
-1. Download `LocalAgentOrchestrator-v0.1.1-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.1.1), run it and choose **Install for this user**. No administrator access is needed.
+1. Download `LocalAgentOrchestrator-v0.2.0-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.0), run it and choose **Install for this user**. No administrator access is needed.
 2. Open **Local Agent Orchestrator** from the Start menu. For portable use, keep LocalAgentOrchestrator.exe and LocalAgentOrchestratorMCP.exe together.
 3. Start your existing local model server, or configure a provider in Settings. Refresh Models. Listed candidates and successful inference are different evidence.
 4. Choose the exact provider/model, a task folder and specific prompt. Attach only relevant text/image sources. The app never silently uploads a whole folder.
@@ -21,10 +21,10 @@ A per-user Windows coordinator that lets a compatible MCP host act as the lead a
 | Ollama | Installed-model discovery; local text and vision input | Real local Qwen text check completed; vision check recorded in TEST-RESULTS.md |
 | LM Studio | Loopback OpenAI-compatible text/vision requests | Protocol tests; service not installed/running on this PC |
 | Claude Code | Existing CLI sign-in; explicit model; response-only worker | Live test verifies empty built-in/MCP tool lists and matching model metadata; no recursive delegation |
-| Antigravity CLI | MCP lead and model discovery | Live Antigravity→Claude delegation passed; worker generation temporarily disabled pending tool-filter verification |
+| Antigravity CLI | MCP lead and restricted response-only worker | Preexecution deny hooks plus session-only file/command/network/MCP denies; frozen worker echo and live denial checks |
 | OpenAI-compatible API | HTTPS with your key, or optional-key loopback server; text/vision and base64 image generation | Mock protocol tests; no billable API requests made |
 | Google Gemini API | Explicit model discovery/text/vision/image requests with your key | Mock protocol tests; no billable API requests made |
-| Codex | Compatible lead via MCP; signed-in model catalog discovery | Live catalog discovery tested; worker execution deliberately unavailable until response-only restrictions are verified |
+| Codex | MCP lead and restricted response-only worker using existing ChatGPT CLI sign-in | Version-specific capability removal, disabled external-tool inventory and ephemeral execution; other CLI versions fail before inference |
 | OpenCode | Compatible lead via MCP; worker model discovery | Worker execution is deliberately unavailable until version-specific confinement is verified |
 
 Image understanding and image generation are different. Ollama vision models analyze supplied images; this app does not turn them into image generators. Image creation requires a configured image-capable Gemini/OpenAI-compatible service, including a compatible local image server if you already run one. No local image-generation weights or ComfyUI workflow engine are bundled. Vertex AI/service-account OAuth and other Google APIs are not implemented by this preview.
@@ -42,7 +42,9 @@ Image understanding and image generation are different. Ollama vision models ana
 
 ## Open-source release
 
-Version **0.0.0** was the first public release, called **Version 0**. Version **0.1.1** fixes discovery blocking other MCP calls, isolates Claude workers and adds Antigravity host setup. Claude→Codex task execution remains unavailable; the installer does not claim universal bidirectional execution. Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+Version **0.0.0** was the first public release, called **Version 0**. Version **0.2.0** adds restricted Codex and Antigravity workers and exposes the running server version for connection diagnostics. Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+
+Codex worker restrictions currently support CLI `0.169.0-alpha.11.1` and require its existing model cache and ChatGPT sign-in. Other versions stop before inference until their controls are verified. Antigravity uses documented pre-tool denial hooks plus session-only deny rules; its tools may remain visible but calls are blocked. These are application controls under the same user account. Existing host authentication, state and owner-configured lifecycle hooks are distinct from model-requested tools and may still operate. No OS or tenant isolation is claimed.
 
 This is an unsigned early preview for attended use. Code signing, signed updates, broader accessibility/security review and independent customer-host testing remain future work. The application coordinates response-only requests; it does not yet offer arbitrary worker file edits, shell execution, an autonomous task planner or automatic model benchmarking/routing. The external lead chooses models and reviews results. Provider availability depends on each user's installed tools, account and endpoint.
 

@@ -1,33 +1,35 @@
-"""Response-only Antigravity ACP worker with session-scoped tool narrowing.
+"""Restricted Antigravity print worker with preexecution application guards.
 
-A documented nonempty built-in allowlist contains no real tool. Default
-customizations are excluded only in this child; no client MCP servers are
-supplied and every client fs/terminal/permission request is denied. Existing
-provider-owned sign-in and managed permission policy are not modified.
+ACP tool filtering does not remove core tools in the installed CLI. Use a
+constant-output PreToolUse deny hook plus session-only sensitive-action denies.
+These are same-user application controls, not operating-system isolation.
 """
+import base64
 import json
 import math
 import os
 from pathlib import Path
-import queue
+import shlex
 import signal
 import subprocess
-import threading
+import tempfile
 import time
 
 from .providers import ProviderError
 
 MAX_STREAM = 4 * 1024 * 1024
 MAX_LINE = 1024 * 1024
-NO_TOOLS = ['lao_no_tools']
-# Live containment probe emitted a tool notification whose execution status was
-# not retained. Until preexecution exclusion is verified, production cannot use
-# the diagnostic protocol path below. This is not configurable from requests.
-RESPONSE_ONLY_VERIFIED = False
+DENY_ACTIONS = ('command(*)', 'mcp(*)', 'read_url(*)', 'execute_url(*)',
+                'download_url(*)', 'read_file(*)', 'write_file(*)')
+GUARD_REASON = 'LOCAL_AGENT_ORCHESTRATOR_RESPONSE_ONLY_DENY'
+# Enabled after live read/write/command/delegation denial, source-adapter text
+# completion, guard-error no-op, cancellation and cleanup checks. This records
+# application-control verification, not an operating-system sandbox guarantee.
+RESPONSE_ONLY_VERIFIED = True
 
 
 def _stop(proc):
-    """Bounded cleanup of this exact child process tree."""
+    """Stop this exact process tree and bound every wait."""
     if proc.poll() is None:
         try:
             if os.name == 'nt':
@@ -48,123 +50,193 @@ def _stop(proc):
             raise ProviderError('Antigravity process cleanup unconfirmed') from None
 
 
-def _structured_failure(obj):
-    if not isinstance(obj, dict):
-        return False
-    if obj.get('is_error') or any(obj.get(k) for k in ('permission_denials', 'denied_actions', 'deny_actions')):
-        return True
-    status = obj.get('status')
-    return isinstance(status, str) and status.upper() in {'ERROR', 'FAILED', 'CANCELLED', 'BLOCKED_PERMISSIONS'}
+def _command(args):
+    if os.name != 'nt':
+        return shlex.join(args)
+    # Hook commands are interpreted by a shell. Do not interpolate paths that
+    # need shell expansion; reject rather than accidentally execute path text.
+    if any(any(c in arg for c in '&|<>^%!"\r\n') for arg in args):
+        raise ProviderError('Antigravity guard path contains unsupported shell characters')
+    return ' '.join('"' + arg + '"' for arg in args)
 
 
-class _ACP:
-    def __init__(self, proc, timeout, cancel_event):
-        self.proc = proc
-        self.deadline = time.monotonic() + timeout
-        self.cancel_event = cancel_event
-        self.messages = queue.Queue(maxsize=256)
-        self.bad_stream = threading.Event()
-        self.text = []
-        self.usage = {}
-        self.selected_family = None
-        self.selected_effort = None
-        self.counter = 0
-        self.readers = []
-        for stream, is_stdout in ((proc.stdout, True), (proc.stderr, False)):
-            reader = threading.Thread(target=self._read, args=(stream, is_stdout), daemon=True)
-            self.readers.append(reader)
-            reader.start()
+def _environment():
+    env = os.environ.copy()
+    env['LOCAL_AGENT_ORCHESTRATOR_WORKER'] = '1'
+    for key in ('ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_APPLICATION_CREDENTIALS'):
+        env.pop(key, None)
+    return env
 
-    def _read(self, stream, is_stdout):
-        total = 0
+
+def _shell():
+    if os.name != 'nt':
+        return '/bin/sh'
+    return str(Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/cmd.exe')
+
+
+def _guard_command(marker, output):
+    """Construct only constant code and escaped CLI-owned paths, never stdin."""
+    encoded_output = json.dumps(output)
+    if os.name == 'nt':
+        powershell = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+        if not powershell.is_file():
+            raise ProviderError('Windows PowerShell is required for Antigravity guards')
+        quote = lambda value: "'" + value.replace("'", "''") + "'"
+        script = ("$ErrorActionPreference='Stop';"
+                  '[IO.File]::WriteAllText(' + quote(str(marker)) + ",'GUARD_CALLED');"
+                  '[Console]::Out.WriteLine(' + quote(encoded_output) + ')')
+        encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
+        return _command([str(powershell), '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded])
+    script = ('set -e; printf %s GUARD_CALLED > ' + shlex.quote(str(marker))
+              + "; printf '%s\\n' " + shlex.quote(encoded_output))
+    return _command(['/bin/sh', '-c', script])
+
+
+def _preflight(command, expected, env):
+    try:
+        # Execute the exact shell command stored in hooks.json. No Python
+        # interpreter is assumed; sys.executable can be the frozen app itself.
+        check = subprocess.run(command, shell=True, executable=_shell(), input=b'ignored model input',
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+                               timeout=5, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if check.returncode != 0 or check.stderr or json.loads(check.stdout) != expected:
+            raise ValueError()
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        raise ProviderError('Antigravity preexecution guard preflight failed') from None
+
+
+def _write_controls(workspace, env):
+    """Only CLI-owned constants go in encoded commands; neither reads stdin."""
+    agents = workspace / '.agents'
+    agents.mkdir()
+    audit = workspace / 'guard-denied.marker'
+    startup = workspace / 'guard-started.marker'
+    denial = {'decision': 'deny', 'reason': GUARD_REASON}
+    commands = []
+    for marker, output in ((audit, denial), (startup, {})):
+        command = _guard_command(marker, output)
+        _preflight(command, output, env)
+        marker.unlink()
+        commands.append(command)
+    config = {'local_agent_orchestrator_response_only': {'enabled': True,
+        'SessionStart': [{'type': 'command', 'command': commands[1], 'timeout': 5}],
+        'PreToolUse': [{'matcher': '*', 'hooks': [{'type': 'command', 'command': commands[0], 'timeout': 5}]}]}}
+    (agents / 'hooks.json').write_text(json.dumps(config), encoding='utf-8')
+    expected = {str(Path('.agents') / 'hooks.json'): (agents / 'hooks.json').read_bytes()}
+    return audit, startup, expected
+
+
+def _tool_error(name, state, error_type=None):
+    error = ProviderError('Antigravity attempted a tool; preexecution guard rejected the response')
+    error.tool_evidence = {'tool_name': str(name)[:100], 'state': str(state)[:30], 'error_type': str(error_type)[:100] if error_type else None}
+    return error
+
+
+def _parse_stream(raw, model):
+    if len(raw) > MAX_STREAM:
+        raise ProviderError('Antigravity response exceeds size limit')
+    init = None
+    final = None
+    tools = []
+    failed_step = False
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        if len(line) > MAX_LINE:
+            raise ProviderError('Antigravity response exceeds line limit')
         try:
-            while True:
-                line = stream.readline(MAX_LINE + 1)
-                if not line:
-                    break
-                total += len(line)
-                if len(line) > MAX_LINE or total > MAX_STREAM:
-                    self.bad_stream.set()
-                    return
-                if is_stdout:
-                    self.messages.put_nowait(line)
-                elif b'AGY_ERROR' in line:
-                    self.bad_stream.set()
-        except (OSError, ValueError, queue.Full):
-            self.bad_stream.set()
+            obj = json.loads(line)
+            if not isinstance(obj, dict):
+                raise ValueError()
+        except (ValueError, UnicodeError):
+            raise ProviderError('Invalid Antigravity stream response') from None
+        event = obj.get('event')
+        if final is not None:
+            raise ProviderError('Antigravity emitted events after terminal response')
+        if event == 'init':
+            if init is not None or not isinstance(obj.get('init'), dict):
+                raise ProviderError('Invalid Antigravity initialization')
+            init = obj['init']
+            if init.get('model') != model:
+                raise ProviderError('Antigravity selected a different model')
+            if init.get('permission_mode') == 'always-proceed':
+                raise ProviderError('Antigravity reported permission bypass mode')
+        elif event == 'step_update':
+            step = obj.get('step_update')
+            if not isinstance(step, dict):
+                raise ProviderError('Invalid Antigravity step response')
+            if step.get('state') == 'ERROR':
+                failed_step = True
+            if step.get('step_type') == 'tool' or step.get('tool_info') or step.get('subagent_info'):
+                info = step.get('tool_info') or {}
+                if not isinstance(info, dict):
+                    raise ProviderError('Invalid Antigravity tool response')
+                detail = info.get('error') or {}
+                if not isinstance(detail, dict):
+                    raise ProviderError('Antigravity reported a failed tool')
+                tools.append((step.get('tool_name') or info.get('name') or 'subagent', step.get('state'), detail.get('type')))
+        elif event == 'result':
+            final = obj.get('result')
+        else:
+            raise ProviderError('Unsupported Antigravity stream event')
+    if tools:
+        raise _tool_error(*next((tool for tool in tools if tool[1] == 'ERROR'), tools[0]))
+    if failed_step:
+        raise ProviderError('Antigravity reported a failed execution step')
+    if init is None or not isinstance(final, dict):
+        raise ProviderError('Antigravity did not return a terminal response')
+    if (final.get('status') != 'SUCCESS' or final.get('is_error') or final.get('error')
+            or any(final.get(key) for key in ('denied_actions', 'permission_denials', 'deny_actions'))):
+        raise ProviderError('Antigravity reported an error or denied action')
+    text = final.get('response')
+    if not isinstance(text, str) or not text.strip():
+        raise ProviderError('Antigravity returned no response text')
+    observed = final.get('modelId') or final.get('model')
+    if observed and observed != model:
+        raise ProviderError('Antigravity reported a different model')
+    return {'text': text, 'artifacts': [], 'observed_model': observed,
+            'usage': final.get('usage', {}) if isinstance(final.get('usage'), dict) else {},
+            'warnings': [] if observed else ['Antigravity confirmed model selection but did not report generation model identity']}
 
-    def _send(self, obj):
+
+def _run(executable, model, prompt, workspace, timeout, cancel_event, env):
+    args = [executable, '--model', model, '--output-format', 'stream-json',
+            '--print-timeout', str(timeout) + 's', '--disable-slash-commands',
+            '--sandbox', '--settings', json.dumps({'permissions': {'deny': list(DENY_ACTIONS)}}), '-p', prompt]
+    # Wildcard deny rules narrow every supported sensitive action namespace.
+    # No allow/ask grants or persistent settings are edited.
+    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         try:
-            self.proc.stdin.write((json.dumps(obj) + '\n').encode('utf-8'))
-            self.proc.stdin.flush()
-        except (OSError, ValueError):
-            raise ProviderError('Antigravity protocol connection closed') from None
-
-    def _notification(self, obj):
-        if obj.get('method') != 'session/update':
-            return
-        update = obj.get('params', {}).get('update', {})
-        if not isinstance(update, dict) or _structured_failure(update):
-            raise ProviderError('Antigravity reported an error or denied action')
-        kind = update.get('sessionUpdate', '')
-        if kind in ('tool_call', 'tool_call_update'):
-            error = ProviderError('Antigravity attempted a prohibited tool; response rejected')
-            error.tool_evidence = {key: update.get(key) for key in ('toolCallId', 'title', 'kind', 'status') if key in update}
-            raise error
-        if kind == 'agent_message_chunk':
-            content = update.get('content', {})
-            if content.get('type') == 'text' and isinstance(content.get('text'), str):
-                self.text.append(content['text'])
-        elif kind == 'config_option_update':
-            for option in update.get('configOptions', []):
-                if option.get('id') == 'model':
-                    self.selected_family = option.get('currentValue')
-                elif option.get('id') == 'thought_level':
-                    self.selected_effort = option.get('currentValue')
-        elif kind == 'usage_update':
-            self.usage = {k: v for k, v in update.items() if isinstance(v, (int, float))}
-
-    def request(self, method, params):
-        self.counter += 1
-        identifier = self.counter
-        self._send({'jsonrpc': '2.0', 'id': identifier, 'method': method, 'params': params})
-        while True:
-            if self.cancel_event is not None and self.cancel_event.is_set():
+            proc = subprocess.Popen(args, cwd=str(workspace), env=env, stdin=subprocess.DEVNULL,
+                                    stdout=stdout, stderr=stderr, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+                                    start_new_session=os.name != 'nt')
+        except OSError:
+            raise ProviderError('Antigravity executable unavailable') from None
+        started = time.monotonic()
+        try:
+            while proc.poll() is None:
+                if cancel_event is not None and cancel_event.is_set():
+                    raise ProviderError('Operation cancelled')
+                if time.monotonic() - started >= timeout:
+                    raise ProviderError('Antigravity timed out')
+                if max(os.fstat(stdout.fileno()).st_size, os.fstat(stderr.fileno()).st_size) > MAX_STREAM:
+                    raise ProviderError('Antigravity response exceeds size limit')
+                time.sleep(.05)
+            if cancel_event is not None and cancel_event.is_set():
                 raise ProviderError('Operation cancelled')
-            if self.bad_stream.is_set():
-                raise ProviderError('Antigravity stream exceeded limits or reported an error')
-            if time.monotonic() >= self.deadline:
-                raise ProviderError('Antigravity timed out')
-            try:
-                raw = self.messages.get(timeout=.05)
-            except queue.Empty:
-                if self.proc.poll() is not None:
-                    raise ProviderError('Antigravity exited before terminal response')
-                continue
-            try:
-                obj = json.loads(raw)
-                if not isinstance(obj, dict):
-                    raise ValueError()
-            except (ValueError, UnicodeError):
-                raise ProviderError('Invalid Antigravity protocol response') from None
-            if 'method' in obj and 'id' in obj:
-                if obj['method'] == 'session/request_permission':
-                    self._send({'jsonrpc': '2.0', 'id': obj['id'], 'result': {'outcome': {'outcome': 'cancelled'}}})
-                else:
-                    self._send({'jsonrpc': '2.0', 'id': obj['id'], 'error': {'code': -32601, 'message': 'Client tools unavailable'}})
-                raise ProviderError('Antigravity requested a prohibited client action; denied')
-            if obj.get('id') == identifier:
-                result = obj.get('result')
-                if obj.get('error') or not isinstance(result, dict) or _structured_failure(result):
-                    raise ProviderError('Antigravity reported an error or denied action')
-                return result
-            if 'id' in obj:
-                raise ProviderError('Unexpected Antigravity response ID')
-            self._notification(obj)
+            if max(os.fstat(stdout.fileno()).st_size, os.fstat(stderr.fileno()).st_size) > MAX_STREAM:
+                raise ProviderError('Antigravity response exceeds size limit')
+            stdout.seek(0)
+            stderr.seek(0)
+            raw, diagnostics = stdout.read(MAX_STREAM + 1), stderr.read(MAX_STREAM + 1)
+            if proc.returncode != 0 or b'AGY_ERROR' in diagnostics:
+                raise ProviderError('Antigravity process failed')
+            return raw
+        finally:
+            _stop(proc)
 
 
 def generate(executable, model, prompt, output_dir, timeout=120, cancel_event=None):
-    """Return only completed text; reject all tool attempts and errors."""
     if cancel_event is not None and cancel_event.is_set():
         raise ProviderError('Operation cancelled')
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 8000:
@@ -174,79 +246,25 @@ def generate(executable, model, prompt, output_dir, timeout=120, cancel_event=No
     if not isinstance(model, str) or not model.strip():
         raise ProviderError('Invalid Antigravity model')
     if not RESPONSE_ONLY_VERIFIED:
-        raise ProviderError('Antigravity response-only execution unavailable: live containment test emitted an unclassified tool notification; preexecution tool exclusion remains unverified')
-    cwd = Path(output_dir).resolve()
-    if not executable or not cwd.is_dir():
+        raise ProviderError('Antigravity response-only execution unavailable: preexecution guard validation is incomplete')
+    root = Path(output_dir).resolve()
+    if not executable or not root.is_dir():
         raise ProviderError('Antigravity executable or output directory unavailable')
-    env = os.environ.copy()
-    env['LOCAL_AGENT_ORCHESTRATOR_WORKER'] = '1'
-    for key in ('ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_APPLICATION_CREDENTIALS'):
-        env.pop(key, None)
-    args = [executable, 'acp', '--include-default-customizations=false', '--log-file', os.devnull]
-    try:
-        proc = subprocess.Popen(args, cwd=str(cwd), env=env, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
-                                start_new_session=os.name != 'nt')
-    except OSError:
-        raise ProviderError('Antigravity executable unavailable') from None
-    acp = None
-    result = None
-    try:
-        acp = _ACP(proc, timeout, cancel_event)
-        init = acp.request('initialize', {'protocolVersion': 1, 'clientCapabilities': {
-            'fs': {'readTextFile': False, 'writeTextFile': False}, 'terminal': False},
-            'clientInfo': {'name': 'local-agent-orchestrator', 'version': '0.1'}})
-        if init.get('protocolVersion') != 1 or init.get('agentInfo', {}).get('name') != 'Antigravity ACP Server':
-            raise ProviderError('Unsupported Antigravity ACP server')
-        session = acp.request('session/new', {'cwd': str(cwd), 'mcpServers': [],
-            '_meta': {'agy': {'enabledTools': NO_TOOLS, 'disabledTools': []}}})
-        sid = session.get('sessionId')
-        if not isinstance(sid, str) or not sid:
-            raise ProviderError('Invalid Antigravity session')
-        models = session.get('models', {}).get('availableModels', [])
-        if model not in [x.get('modelId') for x in models if isinstance(x, dict)]:
-            raise ProviderError('Requested Antigravity model is unavailable')
-        acp.request('session/set_model', {'sessionId': sid, 'modelId': model})
-        acp.request('session/set_mode', {'sessionId': sid, 'modeId': 'default'})
-        final = acp.request('session/prompt', {'sessionId': sid, 'prompt': [{'type': 'text', 'text': prompt}]})
-        if final.get('stopReason') != 'end_turn':
-            raise ProviderError('Antigravity did not complete successfully')
-        observed = final.get('modelId') or final.get('model')
-        if observed and observed != model:
-            raise ProviderError('Antigravity reported a different model')
-        if acp.selected_family and not (model == acp.selected_family or model.startswith(acp.selected_family + '-')):
-            raise ProviderError('Antigravity selected a different model family')
-        if acp.selected_effort and model.endswith(('-low', '-medium', '-high', '-xhigh', '-max')) and not model.endswith('-' + acp.selected_effort):
-            raise ProviderError('Antigravity selected a different model effort')
-        text = ''.join(acp.text)
-        if not text.strip():
-            raise ProviderError('Antigravity returned no text')
-        acp.request('session/close', {'sessionId': sid})
-        result = {'text': text, 'artifacts': [], 'observed_model': observed, 'usage': acp.usage,
-                  'warnings': [] if observed else ['Antigravity confirmed model selection but did not report generation model identity']}
-    finally:
-        _stop(proc)
-        readers = acp.readers if acp else []
-        for reader in readers:
-            reader.join(timeout=.5)
-        safe_streams = [proc.stdin]
-        for index, stream in enumerate((proc.stdout, proc.stderr)):
-            if not readers or not readers[index].is_alive():
-                safe_streams.append(stream)
-        for stream in safe_streams:
+    env = _environment()
+    with tempfile.TemporaryDirectory(prefix='.antigravity-response-', dir=str(root)) as folder:
+        workspace = Path(folder)
+        audit, startup, expected = _write_controls(workspace, env)
+        raw = _run(executable, model, prompt, workspace, timeout, cancel_event, env)
+        if not startup.is_file() or startup.read_text(encoding='utf-8') != 'GUARD_CALLED':
+            raise ProviderError('Antigravity did not confirm preexecution guard startup')
+        actual = {str(path.relative_to(workspace)): path.read_bytes() for path in workspace.rglob('*') if path.is_file() and path not in (audit, startup)}
+        if actual != expected:
+            raise ProviderError('Antigravity child workspace changed unexpectedly')
+        if audit.exists():
+            error = ProviderError('Antigravity tool attempt denied by preexecution guard')
             try:
-                stream.close()
-            except (OSError, ValueError):
-                pass
-        if any(reader.is_alive() for reader in readers):
-            raise ProviderError('Antigravity stream cleanup unconfirmed')
-    if acp.bad_stream.is_set():
-        raise ProviderError('Antigravity stream exceeded limits or reported an error')
-    while not acp.messages.empty():
-        try:
-            packet = json.loads(acp.messages.get_nowait())
-        except (ValueError, UnicodeError):
-            raise ProviderError('Invalid Antigravity protocol response') from None
-        acp._notification(packet)
-    return result
+                _parse_stream(raw, model)
+            except ProviderError as detail:
+                error.tool_evidence = getattr(detail, 'tool_evidence', {})
+            raise error
+        return _parse_stream(raw, model)

@@ -79,7 +79,8 @@ def serve(hub=None, source=None, sink=None):
                     raise ValueError("Missing required arguments")
                 if name == "hub_status":
                     tasks = hub.list_tasks()
-                    value = {"hardware": hub.hardware_info(), "active_tasks": sum(t["status"] in ("queued", "running") for t in tasks),
+                    value = {"version": __version__, "server_executable": sys.executable,
+                             "hardware": hub.hardware_info(), "active_tasks": sum(t["status"] in ("queued", "running") for t in tasks),
                              "providers": {k: {"enabled": v.get("enabled", False), "credential_saved": hub.secrets.has(v.get("credential", k))}
                                            for k, v in hub.config["providers"].items()}, "data_location": str(hub.home), "listen": "stdio only; no public server"}
                 elif name == "list_models": value = hub.discover_models()

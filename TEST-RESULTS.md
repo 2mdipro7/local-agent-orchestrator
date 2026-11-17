@@ -4,6 +4,43 @@
 
 Date: 16 November 2026 (Asia/Dhaka). Version: 0.0.0.
 
+## Version 0.2.0 checks — 17 November 2026
+
+60 automated tests: **59 passed, 1 skipped** (unchanged Windows symbolic-link privilege requirement). Frozen GUI/MCP smoke checks passed, including version 0.2.0 and nine tools. A separate frozen Codex task returned `FROZEN_CODEX=42`, with a 927-character assembled prompt; root independently verified 31+11 and accepted the inspected artifact.
+
+All six directed routes completed actual synthetic inference, MCP artifact retrieval and independent root review:
+
+| Lead | Worker | Task ID | Exact output |
+|---|---|---|---|
+| Codex assistant | Claude Haiku 5.5 | `976109d13623447ea199553dad589ea9` | `CODEX_TO_CLAUDE=42` |
+| Codex assistant | Antigravity Gemini 3.8 Flash Medium | `01406f03a5dc4b7da1e37c3d617a1c3e` | `CODEX_TO_ANTIGRAVITY=42` |
+| Claude Haiku 5.5 | Codex gpt-6-luna | `f23a3d7fb26b4908ad1082b8c8f75adc` | `CLAUDE_TO_CODEX=42` |
+| Claude Haiku 5.5 | Antigravity Gemini 3.8 Flash Medium | `d4974d7992bd4a58a9a06963fc777857` | `CLAUDE_TO_ANTIGRAVITY=42` |
+| Antigravity Gemini 3.8 Flash Medium | Claude Haiku 5.5 | `701ac583932849b7a4b02c82ea441bc8` | `ANTIGRAVITY_TO_CLAUDE=42` |
+| Antigravity Gemini 3.8 Flash Medium | Codex gpt-6-luna | `d90237d7572d4e69bd5d3bc4b8121e34` | `ANTIGRAVITY_TO_CODEX=42` |
+
+The Codex lead was the current assistant invoking an MCP client through its shell tool, not a nested Codex CLI or ChatGPT web session. Those two routes used the frozen executable. Claude and Antigravity were actual headless CLI leads using the source MCP entrypoint; their final traces contained no errors and exactly two submissions each. Claude completed in 35.66 seconds, Antigravity in 58.66 seconds. Workers did not approve themselves. Root inspected prompts, response artifacts, persisted results and lead traces, independently calculated 17+25, and recorded accepted reviews.
+
+One earlier Antigravity lead test used its old global server despite a same-name workspace entry. It completed one Claude worker, then guessed invalid artifact parameters repeatedly. Root stopped that lead after inspecting the completed job. The corrected run used a distinct temporary global MCP entry and exact argument schemas; the temporary entry was removed afterward. This is a harness/connection correction, not a permission bypass. The first run is not counted as a successful direction test. Workspace configuration precedence is not assumed reliable for this CLI.
+
+Codex is pinned to CLI `0.169.0-alpha.11.1`. Root checked the version-matched shell, patch, code-mode, MCP binding and extension gates against OpenAI source. Child-specific catalog/settings narrow capabilities; external-server status must show disabled entries with no tools before inference. Synthetic file-write, command and subagent prompts produced no observed side effects; they do not prove that the model attempted a blocked call. Mock tests exercise forbidden tool events and failure/mismatch paths. Existing owner-configured lifecycle, authentication, host state and managed protections remain active. Automatic project documentation is suppressed for this child.
+
+Antigravity uses documented constant-output pre-tool denial hooks and sensitive-action denies. Live source tests showed read/write/command attempts denied before effects; delegation triggered the deny guard. A hook-error no-op was blocked in the tested version, but that is not a guarantee against every hook/OS failure. Root inspected the implementation, ran guard tests, and verified frozen execution with the PowerShell hook commands; Python is not required by the packaged guards. The all-tools hook and MCP/network deny rules are source-checked; no live external network action was attempted.
+
+Claude reported the matching generation model in provider metadata. Codex and Antigravity confirmed selected models but did not provide independent generation identities; their records retain `observed_model=null` and warnings. These are same-user application controls, not OS isolation or a cross-user security boundary.
+
+For the reported Desktop timeout, root found running old canonical executables while saved config pointed to staged 0.1.1. A fresh installed 0.1.1 server returned history immediately, status in 2.02 seconds and 31 model/status records in 5.44 seconds while discovery was concurrent. Offline Ollama/LM Studio did not block responses. Root stopped only the stale orchestrator processes (zero active jobs) and replaced the old executable path. Claude Desktop was being used for other work, so no completed Desktop restart or post-restart Desktop tool call is claimed. Current status responses expose version and executable path to identify stale sessions.
+
+After installing 0.2.0, binary hashes matched the build and all three existing host profiles pointed to its staged server, with original-byte backups. The installed server initialized in 0.69 seconds; concurrent history, status and model requests returned in 0.01, 2.12 and 4.89 seconds respectively. It reported 31 model/status records and unavailable offline Ollama/LM Studio providers, with no active jobs. Desktop still needs a full quit/reopen to load that connection.
+
+Native adapter deliverables were accepted after root inspected the actual implementations, relevant sources, focused/full test results and frozen outputs. A separate Claude source audit was rejected because it asserted an unsupported web-tool gap and exceeded its output limit; its useful findings were independently checked, not accepted wholesale.
+
+### Repeating the synthetic direction checks
+
+Run `python verify_live_routes.py --lead LEAD --output NEW_ABSOLUTE_DIRECTORY --allow-cloud` separately for `codex-root`, `claude` and `antigravity`. Existing CLI sign-ins and the listed models are required. Each run creates two subscription inference tasks and retains private evidence in a new directory; it refuses to reuse an existing directory. The `codex-root` option is a direct MCP client, so identify the actual assistant operating it rather than claiming an autonomous Codex CLI lead.
+
+For Antigravity, also pass `--temporary-antigravity-connection`. This explicitly backs up its global MCP profile beside the original, adds one distinct test connection, and removes only that connection on exit while preserving other edits. Backups can contain existing private settings: keep them private. A conflicting test entry stops the run. Use `--server ABSOLUTE_MCP_EXE` to test a frozen server. Inspect pending jobs and traces before retrying failures; the harness checks results but does not approve workers on the lead's behalf.
+
 ## Version 0.1.1 checks — 17 November 2026
 
 53 tests: **52 passed, 1 skipped** (unchanged Windows symbolic-link privilege limitation). Added checks cover blocked discovery without blocking history, duplicate-probe prevention, partial results, worker recursion rejection, Claude tool/MCP/status/model checks, Antigravity protocol failures and host setup.
