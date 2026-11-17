@@ -20,7 +20,7 @@ The installer configures local MCP connections; it does **not** install the prov
 
 ## Verified lead → worker routes
 
-All six directions below have historical synthetic-task evidence on the maintainer's Windows PC. The four Claude/Antigravity desktop directions passed again with installed **0.2.2**; a fresh native Codex CLI lead discovered the connection but was blocked by its approval policy before submission. This is route verification, not a benchmark or a guarantee for every account/model/version.
+All six directions below completed synthetic tasks through installed **0.2.2** on the maintainer's Windows PC: four from Claude/Antigravity desktops and two from a native Codex CLI lead. Codex required explicit owner-approved, temporary tool approvals after its initial host-policy denial. This is route verification, not a benchmark or a guarantee for every account/model/version.
 
 | Lead → worker | Verified lead surface | Worker selected | Result |
 |---|---|---|---|
@@ -28,10 +28,10 @@ All six directions below have historical synthetic-task evidence on the maintain
 | Claude → Antigravity | **Claude Desktop**, installed MCP 0.2.2; also older CLI harness | `gemini-3.8-flash-medium` | Passed; desktop job 17.10 s |
 | Antigravity → Claude | **Standalone Antigravity desktop**, installed MCP 0.2.2; also older CLI harness | `claude-haiku-5-5` | Passed; desktop job 9.69 s |
 | Antigravity → Codex | **Standalone Antigravity desktop**, installed MCP 0.2.2; also older CLI harness | `gpt-6-luna` | Passed; desktop job 10.53 s |
-| Codex → Claude | Codex assistant operating a direct MCP client through its shell tool, frozen MCP 0.2.0 | `claude-haiku-5-5` | Passed |
-| Codex → Antigravity | Codex assistant operating a direct MCP client through its shell tool, frozen MCP 0.2.0 | `gemini-3.8-flash-medium` | Passed |
+| Codex → Claude | **Native Codex CLI lead**, installed MCP 0.2.2; temporary owner-approved tool scope | `claude-haiku-5-5` | Passed; worker job 7.03 s |
+| Codex → Antigravity | **Native Codex CLI lead**, installed MCP 0.2.2; temporary owner-approved tool scope | `gemini-3.8-flash-medium` | Passed; worker job 19.08 s |
 
-The Codex rows do not claim successful native Codex delegation on 0.2.2. Its fresh CLI session found the saved server and tools, but calls returned “MCP tool call requires approval, but approval policy is never”; no jobs were submitted or permissions changed. The running Codex desktop was not restarted because other chats were active.
+Codex initially returned “MCP tool call requires approval, but approval policy is never”, without creating jobs. After a specific owner grant, six tools were approved only for the verification process: status, models, history, submission, task reads and artifact reads. The actual Codex model called those native MCP tools and retrieved both outputs; root independently accepted them. The process exited and saved global settings remained unchanged. Future sessions retain their existing approval policies. The running Codex desktop was not restarted because other chats were active, so its current UI session is not separately certified.
 
 Claude and Antigravity desktop runs verified status, discovery, submission, polling and artifact retrieval without the reported timeout. Claude reported its generation model; Codex and Antigravity workers did not, so selected models remain distinct from observed identity. Claude Desktop's initial lead turn also used an out-of-scope cloud shell wait: its procedure was not fully compliant. A correction retrieved the existing results using only permitted MCP reads; root independently accepted the worker artifacts, without erasing that lead failure. See [task IDs, exact outputs, timings and test limits](TEST-RESULTS.md). Connected leads choose models and review results; response-only workers cannot recursively delegate or approve themselves.
 
