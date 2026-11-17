@@ -1,8 +1,16 @@
 # Local Agent Orchestrator
 
+<p align="center">
+  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.3/LocalAgentOrchestrator-v0.2.3-Setup.exe">
+    <img src="https://img.shields.io/badge/Download-Windows_EXE-1677FF?style=for-the-badge" alt="Download Windows EXE" width="420">
+  </a>
+</p>
+
+<p align="center">Windows x64 · v0.2.3 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.3/LocalAgentOrchestrator-v0.2.3-Setup.exe">Direct installer download</a></p>
+
 ![Claude, Codex and Antigravity connect through Local Agent Orchestrator to subscribed workers, local models and optional APIs. Results return to the lead for review.](assets/architecture-banner.png)
 
-[Download for Windows](https://github.com/2mdipro7/local-agent-orchestrator/releases) · [Setup help](HOST-CONNECTIONS.md) · [MIT license](LICENSE)
+[All releases](https://github.com/2mdipro7/local-agent-orchestrator/releases) · [Setup help](HOST-CONNECTIONS.md) · [MIT license](LICENSE)
 
 Connect your AI apps so one can delegate tasks to the others. Local Agent Orchestrator runs on your Windows PC and connects Claude, Codex, Antigravity, local models and supported APIs through one task interface.
 
