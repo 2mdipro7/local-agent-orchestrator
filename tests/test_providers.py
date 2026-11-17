@@ -81,13 +81,22 @@ class ProviderTests(unittest.TestCase):
         response.close()
 
     def test_cli_arguments_and_denial(self):
-        with mock.patch.object(self.manager, '_executable', return_value='claude.exe'), mock.patch.object(self.manager, '_process', return_value=json.dumps({'result': 'ok', 'modelUsage': {'actual': {}}})) as run:
+        def stream(**changes):
+            final = {'type': 'result', 'subtype': 'success', 'result': 'ok', 'modelUsage': {'exact-model': {}}}
+            final.update(changes)
+            return '\n'.join(json.dumps(x) for x in [ {'type': 'system', 'subtype': 'init', 'tools': [], 'mcp_servers': []}, final])
+        with mock.patch.object(self.manager, '_executable', return_value='claude.exe'), mock.patch.object(self.manager, '_process', return_value=stream()) as run:
             result = self.manager.generate('claude', 'exact-model', 'hi', output_dir=self.out)
-        self.assertEqual(run.call_args.args[0], ['claude.exe', '--model', 'exact-model', '-p', 'hi', '--tools', '', '--max-turns', '1', '--output-format', 'json'])
-        self.assertEqual(result['observed_model'], 'actual')
-        with mock.patch.object(self.manager, '_executable', return_value='claude.exe'), mock.patch.object(self.manager, '_process', return_value='{"permission_denials":[{}]}'):
-            with self.assertRaises(ProviderError):
-                self.manager.generate('claude', 'm', 'p', output_dir=self.out)
+        args = run.call_args.args[0]
+        self.assertEqual(args[args.index('--tools')+1], '')
+        self.assertIn('--strict-mcp-config', args)
+        self.assertEqual(json.loads(args[args.index('--mcp-config')+1]), {'mcpServers': {}})
+        self.assertEqual(result['observed_model'], 'exact-model')
+        invalid = [stream(permission_denials=[{}]), stream(subtype='error_max_turns'), stream(modelUsage={'other': {}}), stream().replace('"tools": []', '"tools": ["Bash"]'), stream().replace('"mcp_servers": []', '"mcp_servers": [{}]')]
+        for payload in invalid:
+            with self.subTest(payload=payload), mock.patch.object(self.manager, '_executable', return_value='claude.exe'), mock.patch.object(self.manager, '_process', return_value=payload):
+                with self.assertRaises(ProviderError):
+                    self.manager.generate('claude', 'exact-model', 'p', output_dir=self.out)
 
     def test_cancel_and_timeout(self):
         event = threading.Event()
@@ -106,13 +115,10 @@ class ProviderTests(unittest.TestCase):
         with mock.patch.object(self.manager, '_executable', return_value='agy.exe'), mock.patch.object(self.manager, '_process', return_value=listing):
             models = self.manager.discover()
         self.assertEqual([(m['id'], m['name']) for m in models], [('model-one', 'Model One'), ('model-two', 'Model Two')])
-        with mock.patch.object(self.manager, '_executable', return_value='agy.exe'), mock.patch.object(self.manager, '_process', return_value='{"response":"ok"}') as run:
-            self.manager.generate('antigravity', 'model-one', 'prompt', output_dir=self.out)
-        args = run.call_args.args[0]
-        self.assertIn('--sandbox', args)
-        settings = json.loads(args[args.index('--settings') + 1])
-        self.assertEqual(settings['permissions']['deny'], ['command(*)', 'mcp(*)', 'read_url(*)', 'execute_url(*)', 'download_url(*)', 'read_file(*)', 'write_file(*)'])
-        with mock.patch.object(self.manager, '_executable', return_value='agy.exe'), mock.patch.object(self.manager, '_process', return_value='{"denied_actions":[{}]}'):
+        with mock.patch.object(self.manager, '_executable', return_value='agy.exe'), mock.patch('agenthub.antigravity_worker.generate', return_value={'text': 'ok'}) as run:
+            self.assertEqual(self.manager.generate('antigravity', 'model-one', 'prompt', output_dir=self.out), {'text': 'ok'})
+        self.assertEqual(run.call_args.args[:3], ('agy.exe', 'model-one', 'prompt'))
+        with mock.patch.object(self.manager, '_executable', return_value='agy.exe'), mock.patch('agenthub.antigravity_worker.generate', side_effect=ProviderError('denied')):
             with self.assertRaises(ProviderError):
                 self.manager.generate('antigravity', 'model-one', 'prompt', output_dir=self.out)
 

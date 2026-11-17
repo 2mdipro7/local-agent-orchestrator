@@ -4,8 +4,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import tempfile
+import threading
 import time
 from urllib import error, parse, request
 
@@ -84,6 +86,9 @@ class ProviderManager:
     def __init__(self, config, secret_getter):
         self.config = config
         self.secret_getter = secret_getter
+        self._discovery_lock = threading.Lock()
+        self._discovery_cache = {}
+        self._discovery_inflight = {}
 
     def _config(self, provider):
         return self.config.get('providers', {}).get(provider, {})
@@ -164,12 +169,13 @@ class ProviderManager:
     def _process(self, args, cwd, timeout, cancel_event=None):
         _cancel(cancel_event)
         env = os.environ.copy()
-        for name in ('ANTHROPIC_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY'):
+        for name in ('ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'CODEX_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY'):
             env.pop(name, None)
+        env['LOCAL_AGENT_ORCHESTRATOR_WORKER'] = '1'
         flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
         with tempfile.TemporaryFile(dir=str(cwd)) as stdout, tempfile.TemporaryFile(dir=str(cwd)) as stderr:
             try:
-                proc = subprocess.Popen(args, cwd=str(cwd), env=env, stdout=stdout, stderr=stderr, creationflags=flags)
+                proc = subprocess.Popen(args, cwd=str(cwd), env=env, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr, creationflags=flags, start_new_session=os.name != 'nt')
             except OSError:
                 raise ProviderError('Provider executable unavailable') from None
             start = time.monotonic()
@@ -182,11 +188,18 @@ class ProviderManager:
                 elif stdout.tell() > MAX_RESPONSE or stderr.tell() > MAX_RESPONSE:
                     reason = 'Provider response exceeds size limit'
                 if reason:
-                    if os.name == 'nt':
-                        subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags, check=False)
-                    else:
+                    try:
+                        if os.name == 'nt':
+                            subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags, check=False, timeout=3)
+                        else:
+                            os.killpg(proc.pid, signal.SIGKILL)
+                    except (OSError, subprocess.TimeoutExpired):
                         proc.kill()
-                    proc.wait()
+                    try:
+                        proc.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        raise ProviderError('Provider cleanup unconfirmed') from None
                     raise ProviderError(reason)
                 time.sleep(.1)
             _cancel(cancel_event)
@@ -197,17 +210,37 @@ class ProviderManager:
             stdout.seek(0)
             return stdout.read(MAX_RESPONSE + 1).decode('utf-8', errors='replace')
 
-    def discover(self):
-        records = []
-        for provider, cfg in self.config.get('providers', {}).items():
-            if not cfg.get('enabled'):
-                continue
+    def discover(self, deadline_seconds=12):
+        """Concurrent bounded probes; retain in-flight probes instead of retry storms."""
+        enabled = {p: c for p, c in self.config.get('providers', {}).items() if c.get('enabled')}
+        def unavailable(provider, reason):
+            return {'provider': provider, 'id': '', 'name': provider, 'modality': 'unknown', 'status': 'unavailable', 'reason': reason}
+        def probe(provider, cfg, event):
             try:
                 models = self._discover_one(provider, cfg)
-                records.extend(models)
-            except (ProviderError, KeyError, TypeError, ValueError):
-                records.append({'provider': provider, 'id': '', 'name': provider, 'modality': 'unknown', 'status': 'unavailable'})
-        return records
+            except Exception as exc:
+                reason = str(exc)[:180] if isinstance(exc, ProviderError) else 'Provider discovery failed'
+                models = [unavailable(provider, reason)]
+            with self._discovery_lock:
+                self._discovery_cache[provider] = (time.monotonic(), models)
+                self._discovery_inflight.pop(provider, None)
+                event.set()
+        deadline = time.monotonic() + deadline_seconds
+        with self._discovery_lock:
+            for provider, cfg in enabled.items():
+                cached = self._discovery_cache.get(provider)
+                if (cached and time.monotonic() - cached[0] < 30) or provider in self._discovery_inflight:
+                    continue
+                event = threading.Event()
+                self._discovery_inflight[provider] = event
+                threading.Thread(target=probe, args=(provider, cfg, event), daemon=True).start()
+            waiting = list(self._discovery_inflight.values())
+        for event in waiting:
+            event.wait(max(0, deadline - time.monotonic()))
+        with self._discovery_lock:
+            return [record for provider in enabled for record in
+                    (self._discovery_cache[provider][1] if provider not in self._discovery_inflight and provider in self._discovery_cache
+                     else [unavailable(provider, 'Probe still running after discovery deadline; no duplicate probe started')])]
 
     def _discover_one(self, provider, cfg):
         def record(mid, name=None, modality='text', status='available'):
@@ -245,7 +278,7 @@ class ProviderManager:
                         continue
                     mid, display = (part.strip() for part in columns)
                     if mid and display and ' ' not in mid:
-                        result.append(record(mid, display))
+                        result.append(record(mid, display, status='discovery_only'))
                 return result
             # CLI output may be JSON or newline-separated model IDs.
             try:
@@ -276,22 +309,46 @@ class ProviderManager:
             exe = self._executable(provider, cfg)
             if not exe:
                 raise ProviderError('Provider executable unavailable')
-            args = ([exe, '--model', model, '-p', prompt, '--tools', '', '--max-turns', '1', '--output-format', 'json'] if provider == 'claude' else [exe, '-p', prompt, '--model', model, '--output-format', 'json', '--sandbox', '--settings', json.dumps({'permissions': {'deny': ['command(*)', 'mcp(*)', 'read_url(*)', 'execute_url(*)', 'download_url(*)', 'read_file(*)', 'write_file(*)']}})])
+            if provider == 'antigravity':
+                from .antigravity_worker import generate
+                return generate(exe, model, prompt, output_dir, timeout, cancel_event)
+            args = [exe, '--model', model, '-p', prompt, '--tools', '', '--max-turns', '1',
+                    '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}',
+                    '--permission-prompts', 'none', '--disable-slash-commands', '--no-chrome',
+                    '--settings', json.dumps({'disableAllHooks': True, 'autoMemoryEnabled': False,
+                                             'disableWorkflows': True, 'disableClaudeAiConnectors': True}),
+                    '--output-format', 'stream-json', '--verbose']
             raw = self._process(args, output_dir, timeout, cancel_event)
             try:
-                obj = json.loads(raw)
+                events = [json.loads(line) for line in raw.splitlines() if line.strip()]
             except ValueError:
                 raise ProviderError('Invalid provider response') from None
-            if not isinstance(obj, dict):
+            if any(not isinstance(event, dict) for event in events):
                 raise ProviderError('Invalid provider response')
+            init = [e for e in events if e.get('type') == 'system' and e.get('subtype') == 'init']
+            terminal = [e for e in events if e.get('type') == 'result']
+            if len(init) != 1 or init[0].get('tools') != [] or init[0].get('mcp_servers') != []:
+                raise ProviderError('Claude response-only tool configuration could not be verified')
+            for event in events:
+                content = event.get('message', {}).get('content', []) if isinstance(event.get('message'), dict) else []
+                if any(isinstance(part, dict) and part.get('type') in ('tool_use', 'server_tool_use') for part in content):
+                    raise ProviderError('Claude attempted a prohibited tool; response rejected')
+            if len(terminal) != 1 or terminal[0].get('subtype') != 'success':
+                raise ProviderError('Claude did not complete successfully')
+            obj = terminal[0]
             if obj.get('is_error') or obj.get('permission_denials') or obj.get('denied_actions') or obj.get('deny_actions'):
                 raise ProviderError('Provider reported an error or denied action')
             result['text'] = str(obj.get('result', obj.get('response', '')) or '')
             result['usage'] = obj.get('usage', {}) if isinstance(obj.get('usage', {}), dict) else {}
             if provider == 'claude' and isinstance(obj.get('modelUsage'), dict):
                 names = list(obj['modelUsage'])
-                if len(names) == 1:
-                    result['observed_model'] = names[0]
+                if names and names != [model]:
+                    raise ProviderError('Claude reported a different model')
+                result['observed_model'] = names[0] if names else None
+            if not result['observed_model']:
+                result['warnings'].append('Claude did not report generation model identity')
+            if not result['text'].strip():
+                raise ProviderError('Claude returned no text')
             return result
         default = {'ollama': 'http://127.0.0.1:11434', 'lmstudio': 'http://127.0.0.1:1234/v1', 'gemini': 'https://generativelanguage.googleapis.com/v1beta'}.get(provider, '')
         if provider not in ('ollama', 'lmstudio', 'openai_compatible', 'gemini'):

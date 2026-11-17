@@ -19,7 +19,7 @@ from tkinter import filedialog, messagebox, ttk
 PROVIDER_LABELS = {
     "ollama": "Ollama", "lmstudio": "LM Studio",
     "openai_compatible": "OpenAI-compatible API", "gemini": "Google Gemini API",
-    "claude": "Claude Code", "antigravity": "Google Antigravity",
+    "claude": "Claude Code", "antigravity": "Antigravity (lead and model discovery)",
     "opencode": "OpenCode", "codex": "Codex (model discovery only)",
 }
 DEFAULT_URLS = {
@@ -339,7 +339,7 @@ class App(ttk.Frame):
     def _connections(self):
         page = self.pages["Connections"]
         self._heading(page, "Connect your lead assistant", "Any compatible MCP lead can use the Orchestrator: Codex, Claude, OpenCode and other clients with local MCP support.")
-        ttk.Label(page, text="Connect a detected Claude profile below, or export the connection for another compatible client. Each host must load this connection separately. Web-only services need a compatible local connector.",
+        ttk.Label(page, text="Connect a detected Claude or Antigravity profile below, or export the connection for another compatible client. Each host must load this connection separately. Web-only services need a compatible local connector.",
                   wraplength=1000, style="Muted.TLabel").pack(anchor="w", pady=(0, 12))
         self.connection_box = self._text(page, height=6, editable=False)
         try:
@@ -374,7 +374,7 @@ class App(ttk.Frame):
             if target['status'] == 'Not connected':
                 ttk.Button(row, text="Connect", command=lambda t=target: self._connect_host(t)).pack(side="right")
         if not targets:
-            ttk.Label(self.host_frame, text="No supported Claude configuration found. Open the host's local MCP settings and create its configuration, then refresh, or use the exported configuration.", wraplength=950).pack(anchor="w")
+            ttk.Label(self.host_frame, text="No supported host configuration found. Open the host's local MCP settings and create its configuration, then refresh, or use the exported configuration.", wraplength=950).pack(anchor="w")
 
     def _connect_host(self, target):
         from .hosts import register_host, SERVER

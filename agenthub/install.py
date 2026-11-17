@@ -80,7 +80,7 @@ def installer_ui():
     ttk.Label(frame, text="Created by Mehrab Mashrafi (@2mdipro7)").pack(anchor="w", pady=(8, 0))
     ttk.Label(frame, text=str(install_dir()), wraplength=530).pack(anchor="w", pady=18)
     connect_claude = tk.BooleanVar(value=True)
-    ttk.Checkbutton(frame, text="Connect detected Claude Desktop and Claude Code profiles", variable=connect_claude).pack(anchor="w")
+    ttk.Checkbutton(frame, text="Connect detected Claude and Antigravity profiles", variable=connect_claude).pack(anchor="w")
     def install():
         try:
             path = install_to()

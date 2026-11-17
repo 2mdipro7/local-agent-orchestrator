@@ -66,6 +66,19 @@ class CodexDiscoveryTests(unittest.TestCase):
                 worker.discover_models('codex', .01)
             stop.assert_called_once_with(proc)
 
+    def test_cleanup_is_bounded_when_process_refuses_to_exit(self):
+        from unittest.mock import Mock
+        import subprocess
+        proc = Mock(pid=123)
+        proc.poll.return_value = None
+        proc.wait.side_effect = subprocess.TimeoutExpired('codex', 2)
+        with patch.object(worker.os, 'name', 'nt'), patch.object(worker.subprocess, 'run', side_effect=subprocess.TimeoutExpired('taskkill', 2)) as kill_tree:
+            worker._stop(proc)
+        self.assertEqual(kill_tree.call_args.kwargs['timeout'], 2)
+        self.assertEqual(kill_tree.call_args.kwargs['stdin'], subprocess.DEVNULL)
+        proc.kill.assert_called_once()
+        proc.wait.assert_called_once_with(timeout=2)
+
     def test_generation_never_spawns_and_cancel(self):
         with patch.object(worker.subprocess, 'Popen') as popen:
             with self.assertRaisesRegex(ProviderError, 'response-only'):

@@ -30,6 +30,9 @@ def host_targets(home=None, environ=None):
     cli = home / '.claude.json'
     if cli.is_file():
         result.append({'id': 'claude-code', 'name': 'Claude Code (all projects)', 'path': str(cli)})
+    antigravity = home / '.gemini/config/mcp_config.json'
+    if antigravity.is_file():
+        result.append({'id': 'antigravity', 'name': 'Google Antigravity (all projects)', 'path': str(antigravity)})
     return result
 
 
@@ -41,6 +44,8 @@ def _read(path):
     if path.stat().st_size > 16 * 1024 * 1024:
         raise ValueError('Host configuration exceeds size limit')
     raw = path.read_bytes()
+    # Antigravity may create an empty global MCP file before its first server.
+    empty_antigravity = path.name == 'mcp_config.json' and path.parent.name == 'config' and path.parent.parent.name == '.gemini'
     try:
         def unique(items):
             out = {}
@@ -49,7 +54,7 @@ def _read(path):
                     raise ValueError('Duplicate configuration key')
                 out[key] = value
             return out
-        obj = json.loads(raw.decode('utf-8-sig'), object_pairs_hook=unique)
+        obj = {} if not raw.strip() and empty_antigravity else json.loads(raw.decode('utf-8-sig'), object_pairs_hook=unique)
     except (ValueError, UnicodeError):
         raise ValueError('Host configuration is invalid; no changes made') from None
     if not isinstance(obj, dict) or not isinstance(obj.get('mcpServers', {}), dict):

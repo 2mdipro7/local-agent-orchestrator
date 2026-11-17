@@ -3,7 +3,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from agenthub.hosts import desktop_configs, register_host, connection_status
+from agenthub.hosts import desktop_configs, host_targets, register_host, connection_status
 
 
 class HostTests(unittest.TestCase):
@@ -41,6 +41,19 @@ class HostTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             register_host(self.path, {'command': str(self.root / 'missing.exe')})
         self.assertEqual(self.path.read_text(), '{}')
+
+    def test_antigravity_empty_initial_config(self):
+        path = self.root / '.gemini/config/mcp_config.json'
+        path.parent.mkdir(parents=True)
+        path.touch()
+        targets = host_targets(self.root, {})
+        self.assertEqual(targets[0]['id'], 'antigravity')
+        result = register_host(path, self.entry)
+        self.assertEqual(Path(result['backup']).read_bytes(), b'')
+        self.assertEqual(json.loads(path.read_text())['mcpServers']['local-agent-orchestrator'], self.entry)
+        self.path.touch()
+        with self.assertRaises(ValueError):
+            register_host(self.path, self.entry)
 
     def test_migrated_profile_detected_without_stale_directory(self):
         local = self.root / 'Local'

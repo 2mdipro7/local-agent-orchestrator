@@ -4,6 +4,20 @@
 
 Date: 16 November 2026 (Asia/Dhaka). Version: 0.0.0.
 
+## Version 0.1.1 checks — 17 November 2026
+
+53 tests: **52 passed, 1 skipped** (unchanged Windows symbolic-link privilege limitation). Added checks cover blocked discovery without blocking history, duplicate-probe prevention, partial results, worker recursion rejection, Claude tool/MCP/status/model checks, Antigravity protocol failures and host setup.
+
+Frozen 0.1.1 GUI/MCP checks passed: startup/exit, server version, nine tools and connection export. A staged installed 0.1.1 server returned history in 0.77 seconds and 31 model/status records in 5.89 seconds. Claude Code reported that staged server Connected at user scope. Claude Desktop was actively running unrelated work, so its configuration was updated with backup for the next restart; no current Desktop reload is claimed. Antigravity's global profile was registered with the staged server.
+
+An isolated installed 0.1.0 process returned both model discovery and history after 12.34 seconds: the reported 80-second timeout was not reproduced, but serialization was. Updated source returned history in 0.34 seconds while discovery completed in 6.69 seconds. Ollama and LM Studio refused connections; their models are not verified running.
+
+Live Claude Haiku returned the exact synthetic echo with empty built-in/MCP tool lists, matching model metadata and no workspace files created. A real Antigravity lead selected Gemini 3.8 Flash Medium, submitted one Claude Haiku task through MCP, retrieved `SUM=42`, and left review to root. Root recomputed the answer, inspected the artifact and recorded acceptance. The lead corrected an initially wrong artifact filename using returned metadata. The test exited normally in 64.38 seconds; assembled worker prompt was 956 characters.
+
+A real Claude Haiku lead completed discovery, history, task and artifact reads in 19.75 seconds overall. Its single Codex submission was rejected before a job or inference was created. It did not retry or switch providers. This verifies the failure boundary, not Claude→Codex execution.
+
+Antigravity ACP 1.5.10 returned an exact echo, but an adversarial canary emitted an unclassified tool notification despite its configured filter. The adapter rejected it and reaped its child; the disposable workspace remained unchanged. The notification's name/status were not retained, so preexecution exclusion is unverified. Production Antigravity workers are disabled. Codex's installed model-driven tool registry also lacks a verified public response-only restriction. No API fallback, credential copying or global permission changes forced either route.
+
 ## Version 0.1.0 checks — 17 November 2026
 
 The lead ran 37 tests: **36 passed, 1 skipped** (Windows symbolic-link privilege unavailable; permissions unchanged). New checks cover preservation of other host settings, original-byte backups, idempotent setup, conflicting/malformed/duplicate-key JSON rejection, migrated Claude Desktop discovery, provider-settings migration, Codex protocol pagination and discovery-only execution refusal.

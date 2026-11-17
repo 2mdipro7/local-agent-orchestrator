@@ -19,21 +19,23 @@ _MAX_PAGES = 100
 
 
 def _stop(proc):
+    """Bound cleanup even when the operating system fails to terminate a child."""
     if proc.poll() is None:
         if os.name == 'nt':
-            subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                           creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), check=False)
+            with suppress(OSError, subprocess.TimeoutExpired):
+                subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               stdin=subprocess.DEVNULL, timeout=2,
+                               creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), check=False)
         else:
-            # A new session is created below, so descendants are also terminated.
             import signal
-            try:
+            with suppress(OSError):
                 os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
         if proc.poll() is None:
-            proc.kill()
-    proc.wait()
+            with suppress(OSError):
+                proc.kill()
+    with suppress(OSError, subprocess.TimeoutExpired):
+        proc.wait(timeout=2)
 
 
 def discover_models(executable, timeout=8):
@@ -141,8 +143,9 @@ def discover_models(executable, timeout=8):
         reader_thread.join(timeout=1)
         with suppress(OSError, ValueError):
             proc.stdin.close()
-        with suppress(OSError, ValueError):
-            proc.stdout.close()
+        if not reader_thread.is_alive():
+            with suppress(OSError, ValueError):
+                proc.stdout.close()
 
 
 def generate(executable, model, prompt, output_dir, timeout=120, cancel_event=None):

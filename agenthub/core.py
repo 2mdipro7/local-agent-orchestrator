@@ -239,12 +239,16 @@ class Hub:
         return resolved
 
     def submit_task(self, provider, model, prompt, workspace, *, lead_id="desktop-user", task_kind="text", source_files=None, images=None, allow_cloud=False, acceptance_criteria=None):
+        if os.environ.get('LOCAL_AGENT_ORCHESTRATOR_WORKER') == '1':
+            raise PermissionError('Delegated workers cannot submit further tasks')
         if provider not in self.config["providers"] or not self.config["providers"][provider].get("enabled"):
             raise ValueError("Choose an enabled provider")
         if provider == "opencode":
             raise ValueError("OpenCode can be a lead via MCP. Its worker execution is discovery-only until a supported tool-denial policy is verified.")
         if provider == "codex":
             raise ValueError("Codex can be a lead via MCP. Its discovered models are not callable workers yet: comprehensive response-only tool restrictions have not been verified.")
+        if provider == "antigravity":
+            raise ValueError("Antigravity can lead via MCP. Worker execution is temporarily disabled: the installed tool filter needs further verification.")
         if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/@+\-]{0,255}", model):
             raise ValueError("Choose an exact model identifier")
         if model.startswith("claude-fable"):
@@ -396,6 +400,8 @@ class Hub:
         return path
 
     def review_task(self, task_id, lead_id, decision, evidence):
+        if os.environ.get('LOCAL_AGENT_ORCHESTRATOR_WORKER') == '1':
+            raise PermissionError('Delegated workers cannot approve tasks')
         task = self.get_task(task_id)
         if not isinstance(lead_id, str) or lead_id != task["lead_id"]:
             raise ValueError("Use the task's lead audit label; labels are not authenticated identities")

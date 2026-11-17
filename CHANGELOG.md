@@ -2,6 +2,17 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.1.1 — 2026-11-17
+
+- Model discovery runs independently of history, with concurrent probes, a shared 12-second deadline, 30-second cache and no duplicate in-flight probes.
+- CLI probes no longer inherit MCP stdin. Child cleanup waits are bounded.
+- Claude workers use strict empty MCP configuration, no built-in tools, disabled optional hooks/skills/connectors and deny-on-prompt behavior. Runtime tool lists, terminal status and reported model are checked.
+- Child recursion markers block MCP and direct submit/review operations. This is defense in depth, not same-user authentication.
+- Existing owner authorization covers scoped cloud subtasks without repeated permission questions.
+- Antigravity profile registration, including its empty initial MCP file, with original-byte backup.
+- Live Antigravity→Claude delegation succeeded. Claude lead discovery/history reads succeeded; Codex submission stopped before launch.
+- Antigravity workers are temporarily disabled after an inconclusive containment test. Codex workers remain disabled. Both hosts can still lead through MCP.
+
 ## 0.1.0 — 2026-11-17
 
 - One-time connection setup for existing Claude Desktop and Claude Code profiles, including migrated Windows Desktop storage.
