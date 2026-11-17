@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.3/LocalAgentOrchestrator-v0.2.3-Setup.exe">
-    <img src="https://img.shields.io/badge/Download-Windows_EXE-1677FF?style=for-the-badge" alt="Download Windows EXE" width="420">
+    <img src="assets/download-windows.svg" alt="Download Windows EXE" width="420" height="64">
   </a>
 </p>
 
