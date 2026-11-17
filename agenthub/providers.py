@@ -210,7 +210,7 @@ class ProviderManager:
             stdout.seek(0)
             return stdout.read(MAX_RESPONSE + 1).decode('utf-8', errors='replace')
 
-    def discover(self, deadline_seconds=12):
+    def discover(self, deadline_seconds=25):
         """Concurrent bounded probes; retain in-flight probes instead of retry storms."""
         enabled = {p: c for p, c in self.config.get('providers', {}).items() if c.get('enabled')}
         def unavailable(provider, reason):
@@ -269,7 +269,10 @@ class ProviderManager:
                 raise ProviderError('Provider executable unavailable')
             if provider == 'claude':
                 return [record(mid, status='unverified') for mid in ('claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5')]
-            output = self._process([exe, 'models'], Path.cwd(), 8)
+            # Desktop hosts may start in protected application directories.
+            # Discovery must neither depend on that cwd nor load its project files.
+            with tempfile.TemporaryDirectory(prefix='lao-model-probe-') as probe_dir:
+                output = self._process([exe, 'models'], Path(probe_dir), 20)
             if provider == 'antigravity':
                 result = []
                 for line in output.splitlines():

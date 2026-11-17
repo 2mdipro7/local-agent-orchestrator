@@ -13,6 +13,20 @@ PNG = b'\x89PNG\r\n\x1a\nexample'
 
 
 class ProviderTests(unittest.TestCase):
+    def test_model_probe_ignores_host_cwd_and_cleans_up_after_failure(self):
+        directories = []
+        def run(args, cwd, timeout):
+            self.assertNotEqual(cwd, Path.cwd())
+            self.assertTrue(cwd.is_dir())
+            self.assertEqual(list(cwd.iterdir()), [])
+            directories.append(cwd)
+            raise ProviderError('Provider timed out')
+        with mock.patch.object(self.manager, '_executable', return_value='agy.exe'), mock.patch.object(self.manager, '_process', side_effect=run):
+            with self.assertRaisesRegex(ProviderError, 'timed out'):
+                self.manager._discover_one('antigravity', {})
+        self.assertEqual(len(directories), 1)
+        self.assertFalse(directories[0].exists())
+
     def test_codex_routes_only_to_restricted_adapter_and_rejects_images(self):
         manager = ProviderManager({'providers': {'codex': {'enabled': True}}}, lambda _: None)
         expected = {'text': 'synthetic', 'observed_model': None, 'warnings': ['identity unknown']}

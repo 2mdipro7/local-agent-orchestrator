@@ -53,6 +53,8 @@ Claude Desktop 5.11492.5 and Claude Code were verified connected on the maintain
 
 A host can retain its old executable path and process after its configuration changes. A saved connection is not proof that the running host loaded it. Fully quit and reopen the host after an upgrade. `hub_status` reports the active version and executable path in current builds.
 
+Desktop hosts may have a different command search path from your terminal. If a CLI is installed but reported unavailable, set its absolute executable path in the provider settings. Model discovery in 0.2.1 uses a fresh temporary directory, independent of the host's launch directory.
+
 Model discovery runs in a separate thread with concurrent, bounded provider probes; history and status do not wait for it. Offline Ollama and LM Studio are reported unavailable. You do not need to start a local model server to use Claude, Codex or Antigravity. Do not keep retrying an unresponsive connection or submit a guessed local model: reconnect first and check its actual status.
 
 Claude, Codex and Antigravity can lead through MCP and call their restricted worker adapters. See TEST-RESULTS.md for the exact directions and versions tested. Codex worker execution currently requires verified CLI `0.169.0-alpha.11.1`, its model cache and existing ChatGPT sign-in. OpenCode remains discovery-only. A discovered model does not prove callable access. No credentials are copied and no paid-API fallback is selected automatically. Workers return responses to their lead; they cannot recursively delegate or approve their own output. The same app can lead in a separate authorized session.

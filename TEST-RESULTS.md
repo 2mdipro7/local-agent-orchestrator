@@ -4,6 +4,21 @@
 
 Date: 16 November 2026 (Asia/Dhaka). Version: 0.0.0.
 
+## Version 0.2.1 Desktop verification — 17 November 2026
+
+Claude Desktop 5.11492.5 loaded the installed 0.2.1 server and completed both requested worker tasks through its actual MCP connection. Status, model discovery, task history, submission, polling and artifact retrieval returned without the former 80-second tool timeout. Codex independently inspected each effective prompt, result.json and response.md, recomputed the sums and recorded accepted reviews through MCP.
+
+| Desktop lead's worker | Task ID | Actual response line | Job elapsed |
+|---|---|---|---|
+| Codex `gpt-6-luna` | `aed71cfa53c145a0ab3131d9d66af1b6` | `DESKTOP_CODEX=42` | 9.19 s |
+| Antigravity `gemini-3.8-flash-medium` | `691cfed17d1d43579b9be45646b13b7f` | `DESKTOP_ANTIGRAVITY=42` | 17.29 s |
+
+Elapsed values use persisted creation/completion timestamps, not individual Desktop tool-call timings. Assembled prompts contained 1,222 and 1,268 characters. No source/image attachments were supplied; the synthetic workspace stayed empty. Antigravity's one trailing line ending was accepted as line formatting. Both observed generation identities remained null with explicit warnings, distinct from selected models.
+
+Earlier Desktop attempts stopped before submission: Codex was absent from Desktop's command search path, and Antigravity discovery exceeded the old deadline. The maintainer configured explicit installed CLI paths without changing credentials or permissions. Discovery now uses an independent temporary directory and a 20-second CLI limit inside a 25-second overall discovery deadline. A fresh frozen-server check launched from Claude's application directory returned history in 0.00 s, status in 2.34 s and 31 model/status records in 5.80 s. Isolating the directory alone did not resolve all cold-start failures; both changes were retained. Offline local providers remained unavailable without blocking the cloud workers.
+
+61 automated tests: **60 passed, 1 skipped** for unchanged Windows symbolic-link privileges. Frozen GUI/MCP startup, version, nine tools and connection export smoke checks passed. No worker-tool restrictions were weakened.
+
 ## Version 0.2.0 checks — 17 November 2026
 
 60 automated tests: **59 passed, 1 skipped** (unchanged Windows symbolic-link privilege requirement). Frozen GUI/MCP smoke checks passed, including version 0.2.0 and nine tools. A separate frozen Codex task returned `FROZEN_CODEX=42`, with a 927-character assembled prompt; root independently verified 31+11 and accepted the inspected artifact.

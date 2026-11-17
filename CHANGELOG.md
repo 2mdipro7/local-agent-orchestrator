@@ -2,6 +2,12 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.2.1 — 2026-11-17
+
+- Run CLI model discovery in a fresh temporary directory rather than the Desktop host's application directory. This prevents protected host directories and their project context from affecting discovery.
+- Allow up to 20 seconds for CLI model startup within a 25-second discovery deadline; history and status remain independent. The earlier eight-second CLI deadline was insufficient on the tested Desktop launch route.
+- Added a regression check for independent discovery working directories and cleanup on failure. Worker permissions and model restrictions are unchanged.
+
 ## 0.2.0 — 2026-11-17
 
 - Restricted Codex workers use the existing ChatGPT CLI sign-in, a temporary capability-narrowed model catalog, disabled external-tool inventory and ephemeral sessions. Execution is limited to the verified CLI version; no credential copying or API fallback.

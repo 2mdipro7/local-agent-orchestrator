@@ -1,12 +1,12 @@
 # Local Agent Orchestrator — Version 0
 
-**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.0) · [MIT license](LICENSE)
+**Created and maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7)** · [Portfolio](https://2mdipro7.github.io/) · [Downloads](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.1) · [MIT license](LICENSE)
 
 A per-user Windows coordinator that lets a compatible MCP host act as the lead and delegate bounded tasks to configured model providers. This preview has no public server, telemetry, automatic model download, startup service, or bundled credentials/model weights. It does not replace a model subscription.
 
 ## Install and start
 
-1. Download `LocalAgentOrchestrator-v0.2.0-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.0), run it and choose **Install for this user**. No administrator access is needed.
+1. Download `LocalAgentOrchestrator-v0.2.1-Setup.exe` from [Releases](https://github.com/2mdipro7/local-agent-orchestrator/releases/tag/v0.2.1), run it and choose **Install for this user**. No administrator access is needed.
 2. Open **Local Agent Orchestrator** from the Start menu. For portable use, keep LocalAgentOrchestrator.exe and LocalAgentOrchestratorMCP.exe together.
 3. Start your existing local model server, or configure a provider in Settings. Refresh Models. Listed candidates and successful inference are different evidence.
 4. Choose the exact provider/model, a task folder and specific prompt. Attach only relevant text/image sources. The app never silently uploads a whole folder.
@@ -42,7 +42,7 @@ Image understanding and image generation are different. Ollama vision models ana
 
 ## Open-source release
 
-Version **0.0.0** was the first public release, called **Version 0**. Version **0.2.0** adds restricted Codex and Antigravity workers and exposes the running server version for connection diagnostics. Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+Version **0.0.0** was the first public release, called **Version 0**. Version **0.2.0** adds restricted Codex and Antigravity workers. Version **0.2.1** fixes Desktop discovery startup and verifies actual Claude Desktop delegation to both workers; see TEST-RESULTS.md. Application source is licensed under MIT; see [LICENSE](LICENSE). External providers, runtimes and model weights retain their own licenses and terms. Third-party runtime notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 Codex worker restrictions currently support CLI `0.169.0-alpha.11.1` and require its existing model cache and ChatGPT sign-in. Other versions stop before inference until their controls are verified. Antigravity uses documented pre-tool denial hooks plus session-only deny rules; its tools may remain visible but calls are blocked. These are application controls under the same user account. Existing host authentication, state and owner-configured lifecycle hooks are distinct from model-requested tools and may still operate. No OS or tenant isolation is claimed.
 
