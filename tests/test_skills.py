@@ -318,8 +318,16 @@ class SkillsTests(unittest.TestCase):
             finally:
                 release.set()
 
+        frames = requests()
+        class Source:
+            def readline(self, size):
+                line = next(frames, None)
+                if line is None:
+                    return ''
+                assert len(line) + 1 <= size
+                return line + '\n'
         with patch.object(self.hub.skills, "_scan", side_effect=delayed_scan), patch.object(self.hub, "hardware_info", return_value={}):
-            serve(self.hub, requests(), sink)
+            serve(self.hub, Source(), sink)
         self.assertIn(1, [json.loads(line)["id"] for line in sink.getvalue().splitlines()])
 
 

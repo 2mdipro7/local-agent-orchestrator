@@ -1,8 +1,24 @@
 # Security and data handling
 
+## Security update: 0.3.2
+
+The 18 November 2026 review reproduced executable-search, file-link and proxy-routing weaknesses, now fixed in **0.3.2**. Upgrade older previews using the current installer. Validation used synthetic files, local HTTP fixtures, source inspection and independent model review. It is not a third-party penetration-test certification. See [test evidence](TEST-RESULTS.md).
+
+Windows provider executables must be native `.exe`/`.com` files in absolute PATH entries or configured by absolute path. The launch folder, relative PATH entries and `.cmd`/`.bat` wrappers are excluded. Installed binaries and explicit absolute PATH entries remain trusted.
+
+Local model requests bypass ambient proxies. Remote HTTPS providers retain the owner's proxy/TLS configuration. Configure only trusted endpoints and credentials: a loopback port does not authenticate its owner, and another local process could occupy a stopped service's port. Credential names and destinations are owner configuration, not an independent authorization boundary.
+
+Response-size, elapsed-time and cancellation checks run between chunks. A blocked DNS, connect or socket operation can still wait for its timeout. MCP frames are bounded before JSON decoding; oversized frames are discarded in bounded chunks.
+
+Installer and data writes reject existing linked destinations and use exclusive temporary files. This blocks reproduced pre-planted-link attacks, but does not isolate the app from a process controlling the same profile or racing directory changes. External artifact viewers receive a path and retain their own file-handling risks.
+
+Build packages are version- and hash-pinned. Advisory and antivirus checks cannot prove the absence of unknown vulnerabilities. Releases remain unsigned; published checksums verify file consistency, not publisher identity.
+
+## Trust boundaries
+
 Maintainer: [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
-Version 0 is an early, unsigned Windows preview. It is not a tenant-isolation boundary or operating-system sandbox. Run it as your ordinary user. There is no public listener. MCP clients share the authority of that user; lead labels are audit labels, not authenticated identities.
+This is an early, unsigned Windows preview. It is not a tenant-isolation boundary or operating-system sandbox. Run it as your ordinary user. There is no public listener. MCP clients share the authority of that user; lead labels are audit labels, not authenticated identities.
 
 API keys use CurrentUser DPAPI. Prompts, selected input snapshots, responses and history remain ordinary files in the data directory. Other processes running as the same Windows user may access them. Conventional secret-file filters cannot detect every secret. Review inputs before authorizing cloud/subscription work. Providers have their own data and billing policies. Requests can continue on an external server after cancellation/timeout.
 

@@ -4,17 +4,19 @@ import os
 import queue
 import threading
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from . import __version__
+from .providers import _system_tool
+from .fileio import check_write_path as _check_install_path, atomic_write as _atomic_install_write
+
 
 
 def install_dir():
-    return (Path(os.environ["LOCALAPPDATA"]) / "Programs" / "LocalAgentOrchestrator").resolve()
+    return (Path(os.environ["LOCALAPPDATA"]) / "Programs" / "LocalAgentOrchestrator").absolute()
 
 
 def _shortcuts():
@@ -22,7 +24,8 @@ def _shortcuts():
 
 
 def install_to(destination=None, *, payload_app=None, payload_worker=None, register=True):
-    target = Path(destination or install_dir()).resolve()
+    target = Path(destination or install_dir()).absolute()
+    _check_install_path(target)
     if target == Path(target.anchor) or target == Path.home():
         raise ValueError("Invalid installation directory")
     if register and (os.name != "nt" or target != install_dir()):
@@ -32,21 +35,24 @@ def install_to(destination=None, *, payload_app=None, payload_worker=None, regis
     worker = Path(payload_worker or resource / "bin" / "LocalAgentOrchestratorMCP.exe").resolve()
     if not app.is_file() or not worker.is_file():
         raise ValueError("Installer payload is incomplete; use the packaged Setup executable")
+    documents = ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "SHARED-SKILLS.md", "assets/README.md", "assets/architecture-banner.png", "assets/download-windows.svg")
+    # Preflight every destination before changing any installed file.
+    for filename in ("LocalAgentOrchestrator.exe", "LocalAgentOrchestratorMCP.exe", "setup-report.json", *documents):
+        _check_install_path(target / filename)
+    if register:
+        _check_install_path(_shortcuts())
     target.mkdir(parents=True, exist_ok=True)
     for source, filename in ((app, "LocalAgentOrchestrator.exe"), (worker, "LocalAgentOrchestratorMCP.exe")):
         destination_file = target / filename
         if source != destination_file:
-            temporary = target / (filename + ".new")
-            shutil.copy2(source, temporary)
-            os.replace(temporary, destination_file)
-    for filename in ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "SHARED-SKILLS.md", "assets/README.md", "assets/architecture-banner.png", "assets/download-windows.svg"):
+            _atomic_install_write(destination_file, source=source)
+    for filename in documents:
         document = resource / "resources" / filename
         if not document.is_file():
             document = resource / filename
         if document.is_file():
             installed_document = target / filename
-            installed_document.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(document, installed_document)
+            _atomic_install_write(installed_document, source=document)
     if register:
         if os.name != "nt" or target != install_dir():
             raise ValueError("Registered installation must use the current user's application directory")
@@ -67,7 +73,8 @@ def install_to(destination=None, *, payload_app=None, payload_worker=None, regis
         env["HUB_EXECUTABLE"] = str(target / "LocalAgentOrchestrator.exe")
         env["HUB_WORKDIR"] = str(target)
         script = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:HUB_SHORTCUT);$s.TargetPath=$env:HUB_EXECUTABLE;$s.WorkingDirectory=$env:HUB_WORKDIR;$s.Save()"
-        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], env=env,
+        _check_install_path(_shortcuts())
+        subprocess.run([_system_tool('WindowsPowerShell/v1.0/powershell.exe'), "-NoProfile", "-NonInteractive", "-Command", script], env=env,
                        check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
     return target
 
@@ -117,8 +124,8 @@ def setup_installation(*, connect=True, progress=lambda message: None):
               "hosts": hosts, "probe": probe}
     report["ok"] = probe["ok"] and all(h["status"] != "unchanged" for h in hosts)
     try:
-        (path / "setup-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    except OSError:
+        _atomic_install_write(path / "setup-report.json", data=(json.dumps(report, indent=2) + "\n").encode('utf-8'))
+    except (OSError, ValueError):
         report["ok"] = False
         report["report_error"] = "Could not save setup report"
     return report
@@ -212,6 +219,8 @@ def uninstall():
         root.destroy()
         return
     target = install_dir()
+    _check_install_path(target)
+    _check_install_path(_shortcuts())
     if Path(sys.executable).resolve().parent != target:
         raise ValueError("Uninstall must be launched from the installed application")
     import winreg
@@ -236,7 +245,7 @@ Remove-Item -LiteralPath (Join-Path $actual 'THIRD-PARTY-NOTICES.txt') -Force -E
 Remove-Item -LiteralPath $env:HUB_REMOVE_SHORTCUT -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $actual -ErrorAction SilentlyContinue
 """
-    subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], env=env,
+    subprocess.Popen([_system_tool('WindowsPowerShell/v1.0/powershell.exe'), "-NoProfile", "-NonInteractive", "-Command", script], env=env,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      creationflags=subprocess.CREATE_NO_WINDOW)
     root.destroy()

@@ -20,7 +20,8 @@ import uuid
 
 from .providers import ProviderManager, ProviderError, _endpoint, _image_type
 from .secrets import SecretStore
-from .skills import SKILL_GUIDANCE, SkillLibrary, validate_config as validate_skill_config
+from .fileio import atomic_write
+from .skills import SKILL_GUIDANCE, SkillLibrary, _check_path, validate_config as validate_skill_config
 
 DEFAULTS = {
     "max_workers": 4, "max_gpu_jobs": 1, "timeout_seconds": 120,
@@ -204,9 +205,7 @@ class Hub:
     def save_config(self, config):
         clean = deepcopy(config)
         self._validate_config(clean)
-        temporary = self.config_path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(clean, indent=2), encoding="utf-8")
-        os.replace(temporary, self.config_path)
+        atomic_write(self.config_path, data=json.dumps(clean, indent=2).encode("utf-8"))
         self.config = clean
         self.providers = self.provider_factory(self.config, self.secrets.get)
 
@@ -369,7 +368,7 @@ class Hub:
         source_text = ""
         source_hashes = {}
         for file in files:
-            raw = secure_source_bytes(file, 32000)
+            raw = secure_source_bytes(file, 32000, reject_links=True)
             source_hashes[str(file)] = hashlib.sha256(raw).hexdigest()
             try:
                 content = raw.decode("utf-8")
@@ -378,7 +377,7 @@ class Hub:
             source_text += "\n<untrusted_source name=" + json.dumps(file.name) + ">\n" + content + "\n</untrusted_source>\n"
         image_snapshots = []
         for file in image_paths:
-            raw = secure_source_bytes(file, 16 * 1024 * 1024)
+            raw = secure_source_bytes(file, 16 * 1024 * 1024, reject_links=True)
             extension, _ = _image_type(raw)
             source_hashes[str(file)] = hashlib.sha256(raw).hexdigest()
             image_snapshots.append((raw, extension))
@@ -472,10 +471,10 @@ class Hub:
             text = result.get("text", "")
             if not text and not artifacts:
                 raise ProviderError("Provider returned no deliverable")
-            (output / "response.md").write_text(text, encoding="utf-8")
+            atomic_write(output / "response.md", data=text.encode("utf-8"))
             if "response.md" not in artifacts:
                 artifacts.append("response.md")
-            (output / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+            atomic_write(output / "result.json", data=json.dumps(result, indent=2).encode("utf-8"))
             self._update(task_id, status="succeeded", result_text=text,
                          artifacts=list(dict.fromkeys(task["artifacts"] + artifacts)),
                          observed_model=result.get("observed_model"), usage=result.get("usage", {}), warnings=result.get("warnings", []))
@@ -504,8 +503,13 @@ class Hub:
         self.get_task(task_id)
         if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
             raise ValueError("Choose a job-relative artifact path")
-        root = (self.home / "jobs" / task_id).resolve()
-        path = (root / relative).resolve(strict=True)
+        # Validate the original path before resolving it: resolving a replaced
+        # job-directory junction would otherwise redefine the trusted root.
+        root = self.home / "jobs" / task_id
+        path = root / relative
+        _check_path(root, directory=True)
+        _check_path(path)
+        path = path.resolve(strict=True)
         if not path.is_relative_to(root) or not path.is_file():
             raise ValueError("Artifact is outside this job")
         return path
@@ -534,7 +538,7 @@ class Hub:
                 raise ValueError("Review scope, data handling and side effects before acceptance")
         record = {"lead_id": lead_id, "decision": decision, "evidence": evidence, "reviewed_at": now(), "identity_note": "Local audit label, not authenticated identity; record completeness does not prove evidence truth"}
         root = self.home / "jobs" / task_id
-        (root / "lead-review.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+        atomic_write(root / "lead-review.json", data=json.dumps(record, indent=2).encode("utf-8"))
         return self._update(task_id, review_status=decision, lead_review=record)
 
     def connection_config(self, executable):

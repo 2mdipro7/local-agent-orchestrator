@@ -16,7 +16,7 @@ import time
 import tempfile
 from pathlib import Path
 
-from .providers import ProviderError
+from .providers import ProviderError, _system_tool
 
 _MAX_LINE = 2 * 1024 * 1024
 _MAX_PAGES = 100
@@ -27,7 +27,7 @@ def _stop(proc):
     if proc.poll() is None:
         if os.name == 'nt':
             with suppress(OSError, subprocess.TimeoutExpired):
-                subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'],
+                subprocess.run([_system_tool('taskkill.exe'), '/PID', str(proc.pid), '/T', '/F'],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                stdin=subprocess.DEVNULL, timeout=2,
                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), check=False)

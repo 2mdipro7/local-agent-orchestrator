@@ -6,8 +6,27 @@ import sys
 import threading
 
 from . import __version__
-from .core import Hub
+from .core import Hub, secure_source_bytes
 from .skills import MAX_PAGE_SIZE, MAX_SELECTIONS
+
+MAX_REQUEST_CHARACTERS = 2 * 1024 * 1024
+_DISCARD_CHARACTERS = 64 * 1024
+
+
+def _request_frames(source):
+    """Bound allocations before parsing, and drain oversized lines once."""
+    while True:
+        line = source.readline(MAX_REQUEST_CHARACTERS + 1)
+        if not line:
+            return
+        if len(line) > MAX_REQUEST_CHARACTERS:
+            newline = b'\n' if isinstance(line, bytes) else '\n'
+            while line and not line.endswith(newline):
+                line = source.readline(_DISCARD_CHARACTERS)
+            yield None
+        else:
+            yield line
+
 
 TOOLS = [
     ("hub_status", "Read local hardware, provider setup and task counts. No secrets.", {}),
@@ -55,7 +74,9 @@ def serve(hub=None, source=None, sink=None):
     def send(reply):
         with output_lock:
             if not stopped.is_set():
-                sink.write(json.dumps(reply, ensure_ascii=False) + "\n")
+                # ASCII escapes preserve all Unicode while remaining valid UTF-8
+                # even when a Windows host launches us with a legacy code page.
+                sink.write(json.dumps(reply, ensure_ascii=True) + "\n")
                 sink.flush()
 
     def handle(req):
@@ -113,15 +134,14 @@ def serve(hub=None, source=None, sink=None):
                 elif name == "connection_config": value = hub.connection_config("")
                 else:
                     path = hub.artifact_path(**args)
-                    if path.stat().st_size > 10 * 1024 * 1024:
-                        raise ValueError("Artifact too large for inline MCP delivery")
                     mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(path.suffix.lower())
+                    # Keep containment and limits true for the opened handle,
+                    # including replacements between validation and reading.
+                    raw = secure_source_bytes(path, 10 * 1024 * 1024 if mime else 256000, reject_links=True)
                     if mime:
-                        result = {"content": [{"type": "image", "mimeType": mime, "data": base64.b64encode(path.read_bytes()).decode("ascii")}]}
+                        result = {"content": [{"type": "image", "mimeType": mime, "data": base64.b64encode(raw).decode("ascii")}]}
                     else:
-                        if path.stat().st_size > 256000:
-                            raise ValueError("Text artifact too large for inline delivery")
-                        result = {"content": [{"type": "text", "text": path.read_bytes().decode("utf-8")}]}
+                        result = {"content": [{"type": "text", "text": raw.decode("utf-8")}]}
                     send({"jsonrpc": "2.0", "id": req["id"], "result": result})
                     return
                 result = {"content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False)}]}
@@ -142,12 +162,12 @@ def serve(hub=None, source=None, sink=None):
             gate.release()
 
     try:
-        for line in source:
+        for line in _request_frames(source):
             try:
-                if len(line) > 2 * 1024 * 1024:
+                if line is None:
                     raise ValueError()
-                req = json.loads(line)
-            except (ValueError, UnicodeError):
+                req = json.loads(line.decode('utf-8') if isinstance(line, bytes) else line)
+            except (ValueError, UnicodeError, RecursionError):
                 send({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Invalid or oversized JSON request"}})
                 continue
             gate, operation = None, ""

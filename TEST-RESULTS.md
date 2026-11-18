@@ -2,7 +2,26 @@
 
 [Local Agent Orchestrator](https://github.com/2mdipro7/local-agent-orchestrator) · Created by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Last updated: 18 November 2026 (Asia/Dhaka). Current release: 0.3.1. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the later results.
+Last updated: 18 November 2026 (Asia/Dhaka). Current release: 0.3.2. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the later results.
+
+## Version 0.3.2 security review (18 November 2026)
+
+On both the original test interpreter and the updated Python 3.14.10 build runtime, the source suite ran **124 tests: 122 passed and two existing Windows symlink tests were skipped** because this account cannot create symbolic links. Hardlink and directory-junction regressions ran. Tests used synthetic data and local fixture servers, without attacking external systems or exposing personal credentials.
+
+Confirmed and fixed:
+
+- A provider executable planted in the launch directory could win Windows executable lookup. Lookup now excludes that directory and relative PATH entries; configured paths must be absolute, and shell wrappers are rejected. Cleanup and shortcut commands use absolute system paths.
+- Selected source hardlinks, artifact hardlinks and a replaced job-directory junction could cross the intended file boundary. Handle-based reads and link checks now reject them, including replacement after validation.
+- Predictable installer temporary files could overwrite a hardlinked file outside its destination. Installer, settings and credential writes now use exclusive temporary files and checked destinations. Tests preserve an outside marker and verify normal installation.
+- The default urllib proxy handler could route a loopback request through a configured proxy. A local capture fixture reproduced this; application loopback calls now bypass proxies. A redirect test confirms credentials are not replayed to a redirect target.
+- A trickling response could repeatedly extend a socket timeout. Chunked reads now check elapsed time and cancellation. Tests cover response limits, malformed HTTP and nested JSON errors without echoing supplied error text.
+- MCP input length was checked after complete-line allocation. Reads and oversized-frame discards are now bounded; malformed/deep JSON does not prevent the next request from completing. Real subprocess pipes and concurrent discovery fixtures passed. Unicode worker text previously crashed the Windows CP1252 output stream; ASCII-safe JSON transport and per-frame UTF-8 decoding now preserve Bengali/emoji and recover after invalid UTF-8.
+
+Synthetic Windows DPAPI tests confirmed ciphertext storage, successful decryption and rejection of tampering. Seven build packages had no advisories listed by PyPI's version JSON API at audit time: altgraph 0.17.5, packaging 26.3, pefile 2024.8.26, PyInstaller 6.22.3, pyinstaller-hooks-contrib 2026.10, pywin32-ctypes 0.2.3 and setuptools 84.2.1. All seven Windows build wheels were downloaded with pinned hashes verified. The release build was moved to official Python 3.14.10 with OpenSSL 3.5.9, Expat 2.9.0 and Tcl/Tk 9.0, extracted into an isolated build folder using Python install manager with a verified release-index signature. The existing Codex runtime was left intact. These checks do not guarantee absence of unknown vulnerabilities.
+
+GitHub private vulnerability reporting and Dependabot security updates are enabled. Secret scanning and push protection were already enabled. Same-user profile compromise, trusted provider behavior, unsigned release identity and external-viewer races remain limitations; see [SECURITY.md](SECURITY.md).
+
+The Python 3.14.10 frozen GUI and MCP passed startup, all eleven tools, disposable installation, four fresh-profile host handshakes and the install-time probe. GitHub reported no open secret-scanning or Dependabot alerts at the time checked; new findings may appear later.
 
 ## Version 0.3.1 prompt budget (18 November 2026)
 

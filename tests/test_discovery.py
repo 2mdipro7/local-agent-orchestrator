@@ -47,7 +47,13 @@ class DiscoveryTests(unittest.TestCase):
             yield request(3, 'list_tasks')
             yield request(4, 'hub_status')
         sink = Sink()
-        serve(Hub(), source(), sink)
+        frames = source()
+        class Source:
+            def readline(self, size):
+                line = next(frames, '')
+                assert len(line) <= size
+                return line
+        serve(Hub(), Source(), sink)
         results = [json.loads(x) for x in sink.getvalue().splitlines()]
         self.assertEqual([r['id'] for r in results], [2, 3, 4, 1])
         self.assertTrue(results[0]['result']['isError'])

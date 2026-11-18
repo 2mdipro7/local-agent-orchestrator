@@ -170,7 +170,7 @@ class ProviderTests(unittest.TestCase):
         target = self.out / 'Microsoft' / 'WinGet' / 'Packages' / 'Anthropic.ClaudeCode_example' / 'claude.exe'
         target.parent.mkdir(parents=True)
         target.touch()
-        with mock.patch.dict('os.environ', {'LOCALAPPDATA': str(self.out)}), mock.patch('agenthub.providers.shutil.which', return_value=None), mock.patch('pathlib.Path.home', return_value=self.out):
+        with mock.patch.dict('os.environ', {'LOCALAPPDATA': str(self.out)}), mock.patch('agenthub.providers._find_executable', return_value=None), mock.patch('pathlib.Path.home', return_value=self.out):
             self.assertEqual(Path(self.manager._executable('claude', {})), target)
 
     def test_desktop_path_discovery_does_not_require_saved_machine_paths(self):
@@ -182,7 +182,7 @@ class ProviderTests(unittest.TestCase):
             path.touch()
         with mock.patch('pathlib.Path.home', return_value=self.out), \
              mock.patch.dict('os.environ', {'LOCALAPPDATA': str(self.out / 'RedirectedLocal')}), \
-             mock.patch('agenthub.providers.shutil.which', return_value=None):
+             mock.patch('agenthub.providers._find_executable', return_value=None):
             for provider, expected in [('claude', native_claude), ('antigravity', agy), ('codex', codex)]:
                 self.assertEqual(Path(self.manager._executable(provider, {})), expected)
             self.assertIsNone(self.manager._executable('codex', {'executable': str(self.out / 'missing.exe')}))

@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 from agenthub.core import Hub, ACCEPTANCE, secure_source_bytes
 from agenthub import __version__
@@ -157,6 +158,77 @@ class HubTests(unittest.TestCase):
         FakeProvider.gate.set()
         self.assertEqual(self.wait(task['id'])['status'], 'succeeded')
         self.assertEqual(FakeProvider.image_contents, [selected])
+
+    def test_sources_reject_hardlinks_outside_workspace(self):
+        outside = self.root / 'outside.txt'
+        outside.write_text('unselected synthetic data', encoding='utf-8')
+        os.link(outside, self.workspace / 'selected.txt')
+        with self.assertRaises(ValueError):
+            self.submit(source_files=['selected.txt'])
+        image = self.root / 'outside.png'
+        image.write_bytes(b'\x89PNG\r\n\x1a\nsynthetic')
+        os.link(image, self.workspace / 'selected.png')
+        with self.assertRaises(ValueError):
+            self.submit(images=['selected.png'])
+        self.assertEqual(FakeProvider.calls, [])
+        self.assertEqual(self.hub.list_tasks(), [])
+
+    def _read_artifact_mcp(self, task_id, relative):
+        request = {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {
+            'name': 'read_artifact', 'arguments': {'task_id': task_id, 'relative': relative}}}
+        sink = io.StringIO()
+        serve(self.hub, io.StringIO(json.dumps(request) + '\n'), sink)
+        return json.loads(sink.getvalue())['result']
+
+    def test_artifact_hardlinks_and_replacement_are_rejected(self):
+        task = self.wait(self.submit()['id'])
+        output = self.hub.home / 'jobs' / task['id']
+        outside = self.root / 'outside.txt'
+        outside.write_text('unselected synthetic data', encoding='utf-8')
+        artifact = output / 'copy.txt'
+        os.link(outside, artifact)
+        with self.assertRaises(ValueError):
+            self.hub.artifact_path(task['id'], 'copy.txt')
+        self.assertTrue(self._read_artifact_mcp(task['id'], 'copy.txt')['isError'])
+        artifact.unlink()
+        artifact.write_text('selected synthetic data', encoding='utf-8')
+        original = self.hub.artifact_path
+
+        def replace_after_validation(*args, **kwargs):
+            verified = original(*args, **kwargs)
+            artifact.unlink()
+            os.link(outside, artifact)
+            return verified
+
+        with patch.object(self.hub, 'artifact_path', side_effect=replace_after_validation):
+            self.assertTrue(self._read_artifact_mcp(task['id'], 'copy.txt')['isError'])
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows junction containment')
+    def test_replaced_job_directory_junction_is_rejected(self):
+        from _winapi import CreateJunction
+        task = self.wait(self.submit()['id'])
+        output = self.hub.home / 'jobs' / task['id']
+        output.rename(output.with_name(task['id'] + '-original'))
+        outside = self.root / 'outside'
+        outside.mkdir()
+        (outside / 'response.md').write_text('unselected synthetic data', encoding='utf-8')
+        CreateJunction(str(outside), str(output))
+        try:
+            with self.assertRaises(ValueError):
+                self.hub.artifact_path(task['id'], 'response.md')
+            self.assertTrue(self._read_artifact_mcp(task['id'], 'response.md')['isError'])
+        finally:
+            # Remove only the junction itself, never recursively its target.
+            output.rmdir()
+        self.assertTrue((outside / 'response.md').is_file())
+
+    def test_inline_artifact_reader_enforces_byte_limit_and_normal_delivery(self):
+        task = self.wait(self.submit()['id'])
+        output = self.hub.home / 'jobs' / task['id']
+        self.assertEqual(self._read_artifact_mcp(task['id'], 'response.md')['content'][0]['text'], 'fixture result')
+        artifact = output / 'large.txt'
+        artifact.write_bytes(b'x' * 256001)
+        self.assertTrue(self._read_artifact_mcp(task['id'], 'large.txt')['isError'])
 
     @unittest.skipUnless(os.name == 'nt', 'Windows stable-handle reader')
     def test_secure_reader_rejects_source_link_replacement(self):

@@ -4,11 +4,13 @@ import subprocess
 import sys
 import ssl
 
+if sys.version_info[:2] != (3, 14) or sys.version_info[:3] < (3, 14, 10):
+    raise SystemExit('Windows release builds require Python 3.14.10 or a newer 3.14 security patch.')
+
 root = Path(__file__).resolve().parent
 base = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", "--distpath", str(root / "dist"), "--specpath", str(root / "build")]
-# This bundled build interpreter carries an additional TLS trust-data file.
-# Preserve its policy instead of disabling certificate verification or removing
-# the interpreter's security changes when freezing the standard library.
+# Preserve additional trust data when a managed build interpreter supplies it;
+# never remove its TLS security changes when freezing the standard library.
 trust_data = Path(ssl.__file__).with_name("codex-rejected-cas.pem")
 if trust_data.is_file():
     base += ["--add-data", str(trust_data) + ";."]

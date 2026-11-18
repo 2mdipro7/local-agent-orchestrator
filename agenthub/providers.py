@@ -1,9 +1,9 @@
 """Provider discovery and generation for Local Agent Orchestrator."""
 import base64
 import json
+from http.client import HTTPException
 import os
 from pathlib import Path
-import shutil
 import signal
 import subprocess
 import tempfile
@@ -26,6 +26,8 @@ class _NoRedirect(request.HTTPRedirectHandler):
 
 def _endpoint(url, local_only=False):
     try:
+        if not isinstance(url, str) or any(ord(c) <= 32 or ord(c) == 127 for c in url):
+            raise ValueError()
         p = parse.urlsplit(url)
         if p.scheme not in ('http', 'https') or not p.hostname or p.username is not None or p.password is not None or p.query or p.fragment:
             raise ValueError()
@@ -35,6 +37,35 @@ def _endpoint(url, local_only=False):
         return url.rstrip('/')
     except (ValueError, AttributeError):
         raise ProviderError('Invalid provider endpoint') from None
+
+
+def _find_executable(name):
+    """Search only explicit absolute PATH directories, never the launch folder.
+
+    Windows shutil.which may implicitly search cwd. Batch wrappers also invoke
+    a shell despite shell=False, so only native binaries are supported there.
+    """
+    if not isinstance(name, str) or not name or Path(name).name != name:
+        return None
+    extensions = ('',) if os.name != 'nt' else (('',) if Path(name).suffix.lower() in ('.exe', '.com') else ('.exe', '.com'))
+    if os.name == 'nt' and Path(name).suffix and Path(name).suffix.lower() not in ('.exe', '.com'):
+        return None
+    current = Path.cwd().resolve()
+    for entry in os.environ.get('PATH', '').split(os.pathsep):
+        directory = Path(entry.strip('"'))
+        if not directory.is_absolute() or directory.resolve() == current:
+            continue
+        for extension in extensions:
+            candidate = directory / (name + extension)
+            if candidate.is_file() and (os.name == 'nt' or os.access(candidate, os.X_OK)):
+                return str(candidate.resolve())
+    return None
+
+
+def _system_tool(name):
+    """Resolve Windows maintenance commands without project/PATH lookup."""
+    root = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32'
+    return str(root / name) if os.name == 'nt' else name
 
 
 def _cancel(event):
@@ -122,13 +153,26 @@ class ProviderManager:
 
     def _http(self, method, url, payload=None, headers=None, timeout=120, cancel_event=None):
         _cancel(cancel_event)
+        deadline = time.monotonic() + timeout
         data = None if payload is None else json.dumps(payload).encode('utf-8')
         req = request.Request(url, data=data, method=method, headers={'Content-Type': 'application/json', **(headers or {})})
         try:
-            with request.build_opener(_NoRedirect()).open(req, timeout=timeout) as response:
-                raw = response.read(MAX_RESPONSE + 1)
-                if len(raw) > MAX_RESPONSE:
-                    raise ProviderError('Provider response exceeds size limit')
+            handlers = [_NoRedirect()]
+            if parse.urlsplit(url).hostname in ('localhost', '127.0.0.1', '::1'):
+                # Local-model prompts must not leave the PC via ambient proxies.
+                handlers.append(request.ProxyHandler({}))
+            with request.build_opener(*handlers).open(req, timeout=timeout) as response:
+                raw = bytearray()
+                while True:
+                    _cancel(cancel_event)
+                    if time.monotonic() >= deadline:
+                        raise ProviderError('Provider request timed out')
+                    chunk = response.read1(min(65536, MAX_RESPONSE + 1 - len(raw)))
+                    if not chunk:
+                        break
+                    raw.extend(chunk)
+                    if len(raw) > MAX_RESPONSE:
+                        raise ProviderError('Provider response exceeds size limit')
             _cancel(cancel_event)
             obj = json.loads(raw.decode('utf-8'))
             if not isinstance(obj, dict):
@@ -142,15 +186,24 @@ class ProviderManager:
             reason = exc.reason
             code = getattr(reason, 'winerror', None) or getattr(reason, 'errno', None)
             raise ProviderError('Provider connection failed (%s%s)' % (type(reason).__name__, ', code %s' % code if code is not None else '')) from None
-        except (OSError, ValueError, UnicodeError, TimeoutError) as exc:
+        except (OSError, ValueError, UnicodeError, TimeoutError, HTTPException, RecursionError) as exc:
             raise ProviderError('Provider request failed (%s)' % type(exc).__name__) from None
 
     def _executable(self, provider, cfg):
         value = cfg.get('executable')
         if value:
-            return shutil.which(value) or (value if Path(value).is_file() else None)
+            if not isinstance(value, str):
+                raise ProviderError('Invalid provider executable')
+            path = Path(value)
+            if path.is_absolute():
+                if os.name == 'nt' and path.suffix.lower() not in ('.exe', '.com'):
+                    raise ProviderError('Provider executable must be a native binary, not a shell wrapper')
+                return str(path.resolve()) if path.is_file() else None
+            if path.name != value:
+                raise ProviderError('Provider executable path must be absolute')
+            return _find_executable(value)
         name = {'claude': 'claude', 'antigravity': 'agy', 'opencode': 'opencode', 'codex': 'codex'}[provider]
-        found = shutil.which(name)
+        found = _find_executable(name)
         if found:
             return found
         # Desktop hosts do not necessarily inherit the terminal's PATH. Search
@@ -227,7 +280,7 @@ class ProviderManager:
                 if reason:
                     try:
                         if os.name == 'nt':
-                            subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags, check=False, timeout=3)
+                            subprocess.run([_system_tool('taskkill.exe'), '/PID', str(proc.pid), '/T', '/F'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags, check=False, timeout=3)
                         else:
                             os.killpg(proc.pid, signal.SIGKILL)
                     except (OSError, subprocess.TimeoutExpired):

@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 import time
 
-from .providers import ProviderError
+from .providers import ProviderError, _system_tool
 
 MAX_STREAM = 4 * 1024 * 1024
 MAX_LINE = 1024 * 1024
@@ -33,7 +33,7 @@ def _stop(proc):
     if proc.poll() is None:
         try:
             if os.name == 'nt':
-                subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'],
+                subprocess.run([_system_tool('taskkill.exe'), '/PID', str(proc.pid), '/T', '/F'],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), timeout=5, check=False)
             else:

@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import threading
 
+from .fileio import atomic_write, check_write_path
+
 
 class _Blob(ctypes.Structure):
     _fields_ = [("size", wintypes.DWORD), ("data", ctypes.POINTER(ctypes.c_ubyte))]
@@ -40,6 +42,7 @@ class SecretStore:
         self.lock = threading.RLock()
 
     def _load(self):
+        check_write_path(self.path)
         return json.loads(self.path.read_text(encoding="utf-8")) if self.path.is_file() else {}
 
     def set(self, name, value):
@@ -54,9 +57,7 @@ class SecretStore:
             else:
                 values.pop(name, None)
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = self.path.with_suffix(".tmp")
-            temporary.write_text(json.dumps(values), encoding="utf-8")
-            os.replace(temporary, self.path)
+            atomic_write(self.path, data=json.dumps(values).encode("utf-8"))
 
     def get(self, name):
         with self.lock:

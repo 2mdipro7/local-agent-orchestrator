@@ -1,12 +1,12 @@
 # Local Agent Orchestrator
 
 <p align="center">
-  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.1/LocalAgentOrchestrator-v0.3.1-Setup.exe">
+  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.2/LocalAgentOrchestrator-v0.3.2-Setup.exe">
     <img src="assets/download-windows.svg" alt="Download Windows EXE" width="420" height="64">
   </a>
 </p>
 
-<p align="center">Windows x64 · v0.3.1 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.1/LocalAgentOrchestrator-v0.3.1-Setup.exe">Direct installer download</a></p>
+<p align="center">Windows x64 · v0.3.2 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.2/LocalAgentOrchestrator-v0.3.2-Setup.exe">Direct installer download</a></p>
 
 ![Claude, Codex and Antigravity connect through Local Agent Orchestrator to subscribed workers, local models and optional APIs. Results return to the lead for review.](assets/architecture-banner.png)
 

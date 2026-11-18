@@ -2,6 +2,17 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.3.2 (2026-11-18)
+
+- Block executable lookup from the current folder and relative PATH entries; use absolute Windows maintenance-tool paths and reject shell wrappers for provider execution.
+- Reject source/artifact hardlinks and replaced job-directory junctions. Read MCP artifacts through bounded, checked file handles.
+- Replace predictable temporary writes with exclusive temporary files; reject linked installer, settings and credential destinations.
+- Keep loopback model traffic out of ambient proxies. Check cancellation and elapsed time between response chunks and sanitize malformed HTTP/JSON errors.
+- Bound MCP frame reads and recover safely from oversized or excessively nested JSON.
+- Preserve Unicode MCP results across Windows code pages; non-ASCII worker text no longer crashes the transport.
+- Build releases with Python 3.14.10, OpenSSL 3.5.9 and Expat 2.9.0.
+- Pin all build dependencies with wheel hashes and enable private vulnerability reporting and dependency security fixes on GitHub.
+
 ## 0.3.1 (2026-11-18)
 
 - Shorten shared worker boilerplate while preserving scope, tool restrictions, factuality and independent review requirements. More of the unchanged 8,000-character budget is available for existing skills and specific task instructions.
@@ -68,7 +79,7 @@ Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 - Existing provider settings survive the addition of new provider defaults.
 - Clarified host/worker boundaries and Hermes configuration example.
 
-## 0.0.0 â€” Version 0 â€” 2026-11-16
+## 0.0.0 — Version 0 — 2026-11-16
 
 First public release of Local Agent Orchestrator, evolved from the private Local Agent Hub prototype.
 
