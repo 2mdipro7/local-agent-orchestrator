@@ -2,7 +2,27 @@
 
 [Local Agent Orchestrator](https://github.com/2mdipro7/local-agent-orchestrator) · Created by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Last updated: 18 November 2026 (Asia/Dhaka). Current release: 0.3.0. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the later results.
+Last updated: 18 November 2026 (Asia/Dhaka). Current release: 0.3.1. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the later results.
+
+## Version 0.3.1 prompt budget (18 November 2026)
+
+The compact worker contract retains response-only execution, restricted scope, no tools or external actions, no fabricated evidence and separate lead acceptance. A synthetic large-skill regression check verifies that the entire skill and a specific writing brief reach the provider unchanged within 8,000 characters. Oversize rejection remains covered separately. There is no skill-name or user-name exception in discovery or submission.
+
+The source suite ran 98 tests: 96 passed and two ordinary Windows symbolic-link tests were skipped. Frozen GUI/MCP startup, all eleven tools, four disposable host handshakes and the installation probe passed. Version 0.3.0 was installed on the maintainer's PC, followed by the 0.3.1 prompt-budget patch; prior job history was preserved.
+
+Three real lead routes discovered, read and assigned both an existing 6,851-character writing skill and an unrelated temporary format skill:
+
+| Lead | Execution surface | Worker |
+|---|---|---|
+| Codex | Native MCP tools in the existing Codex desktop chat | Claude Sonnet 5.5 |
+| Claude Haiku 5.5 | Claude Code CLI with the installed MCP executable | Antigravity, selected Gemini 4 Hydrogen Medium |
+| Antigravity, selected Gemini 3.8 Flash Medium | CLI with the installed MCP executable | Claude Sonnet 5.5 |
+
+Independent checks compared original skill bytes, recorded SHA-256 hashes, saved job snapshots and complete effective prompts. All matched; writing-task prompts were 7,973 or 7,980 characters. Root review caught one worker changing a planned source check into work underway. That output remains marked for revision; a bounded correction at 7,996 characters preserved the stated facts and was accepted. Six completed deliverables were accepted after independent review. Antigravity did not report generation-model identity, so its selected model is not claimed as provider-observed identity.
+
+Both CLI leads used only the six authorized MCP tools, submitted exactly two tasks each and read both response and skill artifacts. Root checked actual traces rather than relying on lead summaries; one summary's poll counts differed from its trace. Codex's saved configuration, Claude Desktop's configuration and Antigravity's configuration retained their exact pre-test hashes. Claude Code's own profile file changed during CLI execution, but its orchestrator entry remained the same. No permanent tool-approval override was applied.
+
+A separate disposable Windows-user environment contained only two newly created skills, one in Codex's default skills directory and one in Claude's. The installed server discovered and read both with matching hashes and did not find the maintainer's writing skill. This demonstrates per-user discovery without bundled personal skills or model calls. It is an isolated-profile test on the same physical PC. Claude and Antigravity desktop UI conversations were not driven in this session; their registered executable paths were checked separately.
 
 ## Version 0.3.0 shared skills (18 November 2026)
 

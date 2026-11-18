@@ -2,6 +2,11 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.3.1 (2026-11-18)
+
+- Shorten shared worker boilerplate while preserving scope, tool restrictions, factuality and independent review requirements. More of the unchanged 8,000-character budget is available for existing skills and specific task instructions.
+- Add a regression check for a large skill assigned in full alongside a scoped writing task. Skill selection remains generic; no personal skill is bundled or singled out by the application.
+
 ## 0.3.0 (2026-11-18)
 
 - Discover skills from a central library, existing Codex and Claude skill folders, and owner-selected custom folders. Search, read and assign skills from the new Skills tab.

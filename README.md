@@ -1,12 +1,12 @@
 # Local Agent Orchestrator
 
 <p align="center">
-  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.0/LocalAgentOrchestrator-v0.3.0-Setup.exe">
+  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.1/LocalAgentOrchestrator-v0.3.1-Setup.exe">
     <img src="assets/download-windows.svg" alt="Download Windows EXE" width="420" height="64">
   </a>
 </p>
 
-<p align="center">Windows x64 · v0.3.0 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.0/LocalAgentOrchestrator-v0.3.0-Setup.exe">Direct installer download</a></p>
+<p align="center">Windows x64 · v0.3.1 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.1/LocalAgentOrchestrator-v0.3.1-Setup.exe">Direct installer download</a></p>
 
 ![Claude, Codex and Antigravity connect through Local Agent Orchestrator to subscribed workers, local models and optional APIs. Results return to the lead for review.](assets/architecture-banner.png)
 
@@ -61,7 +61,7 @@ Image input lets a model read an image. Image generation requires a configured i
 
 ## Shared skills
 
-Give your lead and workers the same writing rules, review checklist or specialist instructions. Open **Skills** to discover skills already installed in your Codex and Claude folders, search by name or description, and read a skill before assigning it. Discovery stays local and makes no model requests.
+Give your lead and workers the same writing rules, review checklist or specialist instructions. Open **Skills** to discover skills already installed in your Codex and Claude folders, search by name or description, and read a skill before assigning it. Each PC uses its own skill folders; no personal skills are bundled or given special treatment. Discovery stays local and makes no model requests.
 
 Choose **Open central library** to add your own skills. Put each one in a separate folder with a `SKILL.md` file. You can also add an existing skill folder or turn off discovery from Codex and Claude. Skills with the same name remain separate entries, with their source shown.
 

@@ -247,6 +247,21 @@ class SkillsTests(unittest.TestCase):
         self.assertEqual((self.hub.home / "jobs" / task["id"] / "effective_prompt.txt").read_bytes(),
                          result["result_text"].encode())
 
+    def test_large_skill_preserves_full_text_and_room_for_specific_task(self):
+        folder = self.central / "long-guide"
+        main = self.write_skill(folder, "long-guide", "Use supplied facts only.\n" + "A" * 6700 + "\nEND_OF_GUIDE")
+        key = self.list()[0]["id"]
+        prompt = ("Workspace: " + str(self.workspace) + "\nModel: fixture:tiny\nTask type: writing\n\n"
+                  "Client editor: rewrite 'Draft complete; source check next; no date agreed.' into two plain sentences. "
+                  "Preserve facts and uncertainty. Return only the update.")
+        task = self.submit(prompt=prompt, skill_ids=[key], acceptance_criteria=["Plain factual update; no added promises."])
+        self.join_jobs()
+        result = self.hub.get_task(task["id"])
+        self.assertEqual(result["status"], "succeeded")
+        self.assertLessEqual(result["prompt_characters"], 8000)
+        self.assertIn(main.read_bytes().decode(), result["result_text"])
+        self.assertIn(prompt, result["result_text"])
+
     def test_oversize_prompt_creates_no_job(self):
         self.write_skill(self.central / "large", "Large", "x" * 7000)
         key = self.list()[0]["id"]
