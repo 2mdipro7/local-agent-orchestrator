@@ -2,6 +2,13 @@
 
 Maintained by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7).
 
+## 0.3.0 (2026-11-18)
+
+- Discover skills from a central library, existing Codex and Claude skill folders, and owner-selected custom folders. Search, read and assign skills from the new Skills tab.
+- Connected leads can use `list_skills` and `read_skill`, then submit selected skill IDs and referenced text with a task. Each job saves the assigned text, source metadata and hashes for review.
+- Shared skills remain subject to the complete 8,000-character prompt limit, cloud authorization and existing response-only worker restrictions. Skill discovery and reads run independently of MCP status and history.
+- Bound local scanning and reject unsafe skill paths, links and unsupported resource files. Public packages include guidance, never personal skill libraries.
+
 ## 0.2.4 (2026-11-17)
 
 - Setup now tests the installed MCP server and reports per-host registration separately. Failed startup and incomplete setup stay visible with a retry option and a saved setup report.

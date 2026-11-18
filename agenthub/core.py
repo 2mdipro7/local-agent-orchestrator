@@ -20,9 +20,11 @@ import uuid
 
 from .providers import ProviderManager, ProviderError, _endpoint, _image_type
 from .secrets import SecretStore
+from .skills import SKILL_GUIDANCE, SkillLibrary, validate_config as validate_skill_config
 
 DEFAULTS = {
     "max_workers": 4, "max_gpu_jobs": 1, "timeout_seconds": 120,
+    "discover_host_skills": True, "skill_roots": [],
     "providers": {
         "ollama": {"enabled": True, "base_url": "http://127.0.0.1:11434"},
         "lmstudio": {"enabled": True, "base_url": "http://127.0.0.1:1234/v1"},
@@ -71,14 +73,28 @@ def _alive(pid):
         return False
 
 
-def secure_source_bytes(path, limit):
+def secure_source_bytes(path, limit, *, reject_links=False):
     """Read the validated file through a stable handle, not a later path reopen."""
     path = Path(path)
     if os.name != "nt":
         import stat
-        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        flags = os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0)
+        if reject_links:
+            directory_flags = flags | os.O_DIRECTORY
+            directory = os.open(path.anchor, directory_flags)
+            try:
+                for part in path.parts[1:-1]:
+                    child = os.open(part, directory_flags, dir_fd=directory)
+                    os.close(directory)
+                    directory = child
+                fd = os.open(path.name, flags, dir_fd=directory)
+            finally:
+                os.close(directory)
+        else:
+            fd = os.open(path, flags)
         with os.fdopen(fd, "rb") as source:
-            if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode) or (reject_links and info.st_nlink != 1):
                 raise ValueError("Source must be a regular file")
             data = source.read(limit + 1)
     else:
@@ -100,7 +116,8 @@ def secure_source_bytes(path, limit):
             raise ValueError("Cannot securely read selected source; close writers and try again")
         try:
             info = FileInfo()
-            if not kernel.GetFileInformationByHandle(handle, ctypes.byref(info)) or info.attributes & 0x400:
+            if (not kernel.GetFileInformationByHandle(handle, ctypes.byref(info))
+                    or info.attributes & 0x400 or (reject_links and info.links != 1)):
                 raise ValueError("Linked or unstable source is not allowed")
             buffer = ctypes.create_unicode_buffer(32768)
             length = kernel.GetFinalPathNameByHandleW(handle, buffer, len(buffer), 0)
@@ -141,6 +158,7 @@ class Hub:
             self.config.update({k: v for k, v in saved.items() if k != "providers"})
             self.config["providers"].update(saved.get("providers", {}))
         self._validate_config(self.config)
+        self.skills = SkillLibrary(self.home, secure_source_bytes)
         self.providers = provider_factory(self.config, self.secrets.get)
         self._threads = {}
         self._events = {}
@@ -163,6 +181,7 @@ class Hub:
             db.close()
 
     def _validate_config(self, config):
+        validate_skill_config(config, self.home)
         if type(config.get("max_workers")) is not int or not 1 <= config["max_workers"] <= 4:
             raise ValueError("Worker limit must be from 1 to 4")
         if config.get("max_gpu_jobs", 1) != 1:
@@ -201,6 +220,12 @@ class Hub:
 
     def discover_models(self):
         return self.providers.discover()
+
+    def list_skills(self, query="", offset=0, limit=50, refresh=False):
+        return self.skills.list(self.config, query, offset, limit, refresh)
+
+    def read_skill(self, skill_id, resource=None):
+        return self.skills.read(self.config, skill_id, resource)
 
     def list_tasks(self):
         with self._db() as db:
@@ -301,7 +326,9 @@ class Hub:
         return self.submit_task(provider, model, MODEL_CHECK_PROMPT, workspace, allow_cloud=allow_cloud,
                                 acceptance_criteria=[MODEL_CHECK_CRITERION], _model_check=True)
 
-    def submit_task(self, provider, model, prompt, workspace, *, lead_id="desktop-user", task_kind="text", source_files=None, images=None, allow_cloud=False, acceptance_criteria=None, _model_check=False):
+    def submit_task(self, provider, model, prompt, workspace, *, lead_id="desktop-user", task_kind="text",
+                    source_files=None, images=None, allow_cloud=False, acceptance_criteria=None,
+                    skill_ids=None, skill_resources=None, _model_check=False):
         if os.environ.get('LOCAL_AGENT_ORCHESTRATOR_WORKER') == '1':
             raise PermissionError('Delegated workers cannot submit further tasks')
         if provider not in self.config["providers"] or not self.config["providers"][provider].get("enabled"):
@@ -357,15 +384,29 @@ class Hub:
             image_snapshots.append((raw, extension))
         if sum(len(raw) for raw, _ in image_snapshots) > 24 * 1024 * 1024:
             raise ValueError("Combined image inputs exceed the 24 MB task limit")
-        authored = GUARDRAILS + "\nLEAD TASK:\n" + prompt + "\nACCEPTANCE:\n" + "\n".join('- ' + x for x in criteria) + source_text
+        skills = self.skills.snapshots(cfg, skill_ids, skill_resources)
+        skill_text = ""
+        skill_metadata = []
+        for index, (selection, _) in enumerate(skills, 1):
+            metadata = dict(selection)
+            content = metadata.pop("content")
+            relative_path = selection["relative_path"]
+            artifact = f"skills/{index:02d}/{Path(relative_path).name}"
+            skill_metadata.append({**metadata, "artifact": artifact})
+            skill_text += ("\n<selected_skill name=" + json.dumps(selection["name"]) + " file="
+                           + json.dumps(relative_path) + ">\n" + content + "\n</selected_skill>\n")
+        authored = (GUARDRAILS + (SKILL_GUIDANCE if skills else "") + "\nLEAD TASK:\n" + prompt
+                    + "\nACCEPTANCE:\n" + "\n".join('- ' + x for x in criteria) + source_text + skill_text)
         if len(authored) > 8000:
             raise ValueError("Complete prompt exceeds 8,000 characters. Shorten or split the task; nothing was truncated or sent.")
         task_id = uuid.uuid4().hex
         created = now()
         task = {"id": task_id, "provider": provider, "model": model, "observed_model": None, "kind": task_kind,
                 "prompt": prompt, "workspace": str(workspace), "lead_id": lead_id, "status": "queued", "review_status": "pending",
-                "created_at": created, "updated_at": created, "result_text": "", "error": "", "artifacts": [],
-                "acceptance_criteria": criteria, "source_hashes": source_hashes, "prompt_characters": len(authored),
+                "created_at": created, "updated_at": created, "result_text": "", "error": "",
+                "artifacts": [item["artifact"] for item in skill_metadata],
+                "acceptance_criteria": criteria, "source_hashes": source_hashes, "skills": skill_metadata,
+                "prompt_characters": len(authored),
                 "cloud_authorized": bool(allow_cloud), "local_gpu": is_local, "cancel_requested": False,
                 "provider_evidence": self._provider_evidence(provider), "model_check": bool(_model_check)}
         with self._db() as db:
@@ -387,7 +428,11 @@ class Hub:
                     snapshot = output / "inputs" / ("image-%d.%s" % (index, extension))
                     snapshot.write_bytes(raw)
                     job_images.append(snapshot)
-            (output / "effective_prompt.txt").write_text(authored, encoding="utf-8")
+            for metadata, (_, raw) in zip(skill_metadata, skills):
+                snapshot = output / metadata["artifact"]
+                snapshot.parent.mkdir(parents=True)
+                snapshot.write_bytes(raw)
+            (output / "effective_prompt.txt").write_bytes(authored.encode("utf-8"))
             db.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?)", (task_id, "queued", json.dumps(task), os.getpid(), 0, created, created))
         event = threading.Event()
         with self._lock:
@@ -431,7 +476,8 @@ class Hub:
             if "response.md" not in artifacts:
                 artifacts.append("response.md")
             (output / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
-            self._update(task_id, status="succeeded", result_text=text, artifacts=artifacts,
+            self._update(task_id, status="succeeded", result_text=text,
+                         artifacts=list(dict.fromkeys(task["artifacts"] + artifacts)),
                          observed_model=result.get("observed_model"), usage=result.get("usage", {}), warnings=result.get("warnings", []))
         except Exception as exc:
             cancelled = event.is_set() or self.get_task(task_id).get("cancel_requested")

@@ -1,12 +1,12 @@
 # Local Agent Orchestrator
 
 <p align="center">
-  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.4/LocalAgentOrchestrator-v0.2.4-Setup.exe">
+  <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.0/LocalAgentOrchestrator-v0.3.0-Setup.exe">
     <img src="assets/download-windows.svg" alt="Download Windows EXE" width="420" height="64">
   </a>
 </p>
 
-<p align="center">Windows x64 · v0.2.4 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.2.4/LocalAgentOrchestrator-v0.2.4-Setup.exe">Direct installer download</a></p>
+<p align="center">Windows x64 · v0.3.0 preview · <a href="https://github.com/2mdipro7/local-agent-orchestrator/releases/download/v0.3.0/LocalAgentOrchestrator-v0.3.0-Setup.exe">Direct installer download</a></p>
 
 ![Claude, Codex and Antigravity connect through Local Agent Orchestrator to subscribed workers, local models and optional APIs. Results return to the lead for review.](assets/architecture-banner.png)
 
@@ -59,11 +59,25 @@ Claude, Codex and Antigravity can each lead through a compatible MCP connection.
 
 Image input lets a model read an image. Image generation requires a configured image-capable API or compatible local service. No image-generation models are bundled.
 
+## Shared skills
+
+Give your lead and workers the same writing rules, review checklist or specialist instructions. Open **Skills** to discover skills already installed in your Codex and Claude folders, search by name or description, and read a skill before assigning it. Discovery stays local and makes no model requests.
+
+Choose **Open central library** to add your own skills. Put each one in a separate folder with a `SKILL.md` file. You can also add an existing skill folder or turn off discovery from Codex and Claude. Skills with the same name remain separate entries, with their source shown.
+
+In the desktop app, select skills and choose **Assign selected to next task**. A connected lead can use `list_skills`, inspect a choice with `read_skill`, and pass its IDs to `submit_task`. For example:
+
+> Find my shared writing skill, read it, and assign it to the worker drafting this proposal. Review the draft against the same skill before accepting it.
+
+Each job saves the skill text and its hash as they were when the task was submitted. The lead can read those snapshots during review even if the original skill changes later. Only selected skills go to the worker; a cloud task sends that selected content to its provider under the task's cloud authorization.
+
+Skill text shares the 8,000-character prompt budget with the task and attachments. Oversized requests are rejected without truncation. Skills provide instructions; they do not add tools, run their scripts, or grant access to files or services. Workflows that require those capabilities may need a more limited assignment. See [shared skill details](SHARED-SKILLS.md) for folder locations, referenced files and the MCP workflow.
+
 ## Task controls
 
 - Up to four active jobs, with one local-model request at a time.
 - An 8,000-character limit for the complete authored prompt, including instructions, supplied excerpts and acceptance criteria.
-- Only selected files from the task folder enter a request. Check attachments for private information before sending them to a cloud provider.
+- Only selected task files and assigned shared skills enter a request. Check their contents for private information before sending them to a cloud provider.
 - Cloud, API and subscription requests require your authorization to use the configured account.
 - Workers return responses or image artifacts. They cannot edit your project, run commands, delegate further or approve their own output.
 - Completed work stays pending until the lead records a review.

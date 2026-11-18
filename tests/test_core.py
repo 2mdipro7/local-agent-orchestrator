@@ -220,7 +220,8 @@ class HubTests(unittest.TestCase):
         replies = [json.loads(line) for line in sink.getvalue().splitlines()]
         self.assertEqual(replies[0]["result"]["protocolVersion"], "2025-06-18")
         self.assertEqual(replies[0]["result"]["serverInfo"], {"name": "local-agent-orchestrator", "version": __version__})
-        self.assertEqual(len(replies[1]["result"]["tools"]), 9)
+        self.assertEqual(len(replies[1]["result"]["tools"]), 11)
+        self.assertTrue({"list_skills", "read_skill"} <= {tool["name"] for tool in replies[1]["result"]["tools"]})
         self.assertIn("fixture:tiny", replies[2]["result"]["content"][0]["text"])
 
     def test_connection_config_recognizes_renamed_worker(self):

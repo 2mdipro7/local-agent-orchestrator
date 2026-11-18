@@ -2,7 +2,19 @@
 
 [Local Agent Orchestrator](https://github.com/2mdipro7/local-agent-orchestrator) · Created by [Mehrab Mashrafi (@2mdipro7)](https://github.com/2mdipro7) · [Portfolio](https://2mdipro7.github.io/).
 
-Last updated: 17 November 2026 (Asia/Dhaka). Current release: 0.2.4. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the 0.2.x results.
+Last updated: 18 November 2026 (Asia/Dhaka). Current release: 0.3.0. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the later results.
+
+## Version 0.3.0 shared skills (18 November 2026)
+
+The source suite ran 97 tests: 95 passed and two ordinary symbolic-link checks were skipped for unavailable Windows privileges. Source checks cover central, custom, Codex and Claude discovery; duplicate names and versions; search, pagination and cache refresh; explicit referenced text; dispatch-time snapshots and hashes; unchanged cloud authorization; prompt-limit rejection before job creation; private-path filtering; real Windows directory junctions and hardlinks; and MCP status/history responsiveness while a skill scan is blocked. A real Tk widget test selects a synthetic skill, submits it through a fake provider, and inspects its saved snapshot without contacting any model.
+
+Read-only discovery against the maintainer's existing libraries returned 669 Codex and 44 Claude entries in a bounded 12-second scan, including the installed humanize skill. The scan reported truncation for the larger Codex cache and an unavailable Claude plugin-cache root. This verifies both host libraries are reached; it is not a claim that all installed skills fit within one scan. Root traversal is interleaved so one large cache does not consume the entire budget before another library is visited.
+
+Skill snapshots are taken at submission time. The preview-to-submission interval is not hash-pinned; the saved job snapshot is the authoritative record of what was assigned. Filesystem deadlines are checked between operations, so an individual blocked OS read can exceed the scan's nominal time budget. Skill calls run behind a separate bounded MCP gate, leaving status and history available. Ordinary symbolic-link tests require Windows privileges that are unavailable on the maintainer's profile.
+
+The frozen GUI/MCP smoke checks passed with all eleven tools, a disposable installation, four fresh-profile host handshakes and the install-time startup probe. A separate frozen MCP stdio test discovered and read a synthetic skill, submitted it to `claude-haiku-5-5`, and received exactly `SKILL_SHARED_OK=42`. The provider reported the requested model, the complete prompt was 1,830 characters, and the stored skill bytes and hash matched the selected fixture. Independent arithmetic and snapshot checks preceded the recorded acceptance. No personal skills were sent in this test.
+
+These are packaged-server and simulated-profile checks. They do not establish that already-running Codex, Claude or Antigravity desktop sessions have reloaded version 0.3.0. Earlier desktop delegation checks below retain their original versions.
 
 ## Version 0.2.4 installer connection checks (17 November 2026)
 

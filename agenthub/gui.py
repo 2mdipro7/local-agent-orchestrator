@@ -45,6 +45,11 @@ class App(ttk.Frame):
         self.events = queue.Queue()
         self.source_files = []
         self.images = []
+        self.skills = []
+        self.assigned_skills = {}
+        self.skills_loading = False
+        self.skills_offset = 0
+        self.skills_next = None
         self.selected_task = None
         self.detail_signature = None
         self.review_fields = []
@@ -92,12 +97,13 @@ class App(ttk.Frame):
         self.notebook = ttk.Notebook(body)
         self.notebook.pack(fill="both", expand=True)
         self.pages = {}
-        for name in ("Overview", "Models", "Run task", "Tasks & review", "Settings", "Connections"):
+        for name in ("Overview", "Models", "Skills", "Run task", "Tasks & review", "Settings", "Connections"):
             page = ttk.Frame(self.notebook, padding=19)
             self.notebook.add(page, text=name)
             self.pages[name] = self._scrollable(page) if name in ("Run task", "Settings") else page
         self._overview()
         self._models()
+        self._skills()
         self._run_task()
         self._tasks()
         self._settings()
@@ -229,6 +235,158 @@ class App(ttk.Frame):
         frame.columnconfigure(0, weight=1)
         return tree
 
+    def _skills(self):
+        page = self.pages["Skills"]
+        self._heading(page, "Shared skills", "Find guidance from your Codex and Claude folders or a shared library. Only skills you assign are included in a worker request.")
+        self.host_skills = tk.BooleanVar(value=self.hub.config.get("discover_host_skills", True))
+        ttk.Checkbutton(page, text="Discover existing Codex and Claude skills", variable=self.host_skills,
+                        command=self._save_skill_discovery).pack(anchor="w")
+        folders = ttk.Frame(page)
+        folders.pack(fill="x", pady=(6, 4))
+        ttk.Button(folders, text="Open central library", command=self._open_skill_library).pack(side="left", padx=(0, 8))
+        ttk.Button(folders, text="Add skill folder…", command=self._add_skill_root).pack(side="left", padx=(0, 8))
+        ttk.Button(folders, text="Remove custom folders", command=self._clear_skill_roots).pack(side="left")
+        self.skill_roots_note = tk.StringVar()
+        ttk.Label(page, textvariable=self.skill_roots_note, wraplength=1000, style="Muted.TLabel").pack(anchor="w", pady=(0, 8))
+        self._skill_roots_status()
+        search = ttk.Frame(page)
+        search.pack(fill="x", pady=(0, 8))
+        self.skill_query = tk.StringVar()
+        entry = ttk.Entry(search, textvariable=self.skill_query)
+        entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        entry.bind("<Return>", lambda _e: self.refresh_skills())
+        self.skill_refresh = ttk.Button(search, text="Find / refresh skills", command=self.refresh_skills)
+        self.skill_refresh.pack(side="left")
+        self.skill_next_button = ttk.Button(search, text="Next page", command=self._next_skills, state="disabled")
+        self.skill_next_button.pack(side="left", padx=(8, 0))
+        self.skill_tree = self._tree(page, [("name", "Skill", 230), ("origin", "Source", 160), ("description", "Description", 550)], height=5)
+        self.skill_tree.configure(selectmode="extended")
+        actions = ttk.Frame(page)
+        actions.pack(fill="x", pady=7)
+        ttk.Button(actions, text="Read selected skill", command=self._read_selected_skill).pack(side="left", padx=(0, 8))
+        ttk.Button(actions, text="Assign selected to next task", command=self._assign_selected_skills).pack(side="left")
+        self.skill_note = tk.StringVar(value="Refresh to discover skills. Discovery reads local skill files and makes no model requests.")
+        ttk.Label(page, textvariable=self.skill_note, wraplength=1000, style="Muted.TLabel").pack(anchor="w")
+        self.skill_preview = self._text(page, height=6, editable=False)
+
+    def _skill_roots_status(self):
+        roots = self.hub.config.get("skill_roots", [])
+        text = "Central library: " + str(self.hub.home / "skills")
+        if roots:
+            text += "\nCustom folders: " + "; ".join(roots)
+        self.skill_roots_note.set(text)
+
+    def _save_skill_config(self, config):
+        try:
+            self.hub.save_config(config)
+            self._clear_skills()
+            self._skill_roots_status()
+            self.refresh_skills()
+        except Exception as exc:
+            self.host_skills.set(self.hub.config.get("discover_host_skills", True))
+            self._error("Could not save skill folders", exc)
+
+    def _save_skill_discovery(self):
+        config = copy.deepcopy(self.hub.config)
+        config["discover_host_skills"] = self.host_skills.get()
+        self._save_skill_config(config)
+
+    def _add_skill_root(self):
+        folder = filedialog.askdirectory(parent=self.root, title="Choose a folder containing skills", mustexist=True)
+        if folder:
+            config = copy.deepcopy(self.hub.config)
+            roots = config.setdefault("skill_roots", [])
+            if folder not in roots:
+                roots.append(folder)
+            self._save_skill_config(config)
+
+    def _clear_skill_roots(self):
+        config = copy.deepcopy(self.hub.config)
+        config["skill_roots"] = []
+        self._save_skill_config(config)
+
+    def _open_skill_library(self):
+        try:
+            folder = self.hub.home / "skills"
+            folder.mkdir(exist_ok=True)
+            os.startfile(str(folder))
+        except Exception as exc:
+            self._error("Could not open skill library", exc)
+
+    def refresh_skills(self, offset=0):
+        if self.skills_loading:
+            return
+        self.skills_loading = True
+        self.skill_refresh.configure(state="disabled")
+        self.skill_next_button.configure(state="disabled")
+        self.skill_note.set("Reading local skill metadata…")
+        query = self.skill_query.get().strip()
+
+        def discover():
+            try:
+                result = self.hub.list_skills(query=query, offset=offset, limit=50, refresh=offset == 0)
+                self.events.put(("skills_list", (offset, result)))
+            except Exception as exc:
+                self.events.put(("skills_error", exc))
+        threading.Thread(target=discover, daemon=True, name="hub-skill-discovery").start()
+
+    def _next_skills(self):
+        if self.skills_next is not None:
+            self.refresh_skills(self.skills_next)
+
+    def _skill_event(self, event, payload):
+        if event == "skills_preview":
+            self._put(self.skill_preview, payload)
+            return
+        self.skills_loading = False
+        self.skill_refresh.configure(state="normal")
+        if event == "skills_error":
+            self.skill_note.set("Could not read the skill library. Check its folders and try again.")
+            self._error("Could not read skills", payload)
+            return
+        self.skills_offset, result = payload
+        self.skills = result["skills"]
+        self.skills_next = result.get("next_offset")
+        self.skill_tree.delete(*self.skill_tree.get_children())
+        for skill in self.skills:
+            self.skill_tree.insert("", "end", iid=skill["id"], values=(skill["name"], skill.get("origin", ""), skill.get("description", "")))
+        self.skill_next_button.configure(state="normal" if self.skills_next is not None else "disabled")
+        note = f"Showing {len(self.skills)} of {result['total']} matching skills. Select one to read; Ctrl-click to select several."
+        if result.get("truncated"):
+            note += " Discovery reached its scan limit; use a smaller skill folder for missing entries."
+        if result.get("skipped_roots"):
+            note += f" {len(result['skipped_roots'])} unavailable or skipped folder(s)."
+        self.skill_note.set(note)
+
+    def _read_selected_skill(self):
+        selected = self.skill_tree.selection()
+        if not selected:
+            return self._warning("Choose a skill", "Select a skill to read its instructions.")
+        skill_id = selected[0]
+
+        def read():
+            try:
+                skill = self.hub.read_skill(skill_id)
+                text = f"{skill['name']}\nSource: {skill.get('path', '')}\nSHA-256: {skill['sha256']}\n\n{skill['content']}"
+                self.events.put(("skills_preview", text))
+            except Exception as exc:
+                self.events.put(("skills_error", exc))
+        threading.Thread(target=read, daemon=True, name="hub-skill-preview").start()
+
+    def _assign_selected_skills(self):
+        selected = set(self.skill_tree.selection())
+        if not selected:
+            return self._warning("Choose a skill", "Select the skills needed for your next task.")
+        for skill in self.skills:
+            if skill["id"] in selected:
+                self.assigned_skills[skill["id"]] = skill["name"]
+        self.assigned_skill_note.set("Assigned skills: " + "; ".join(self.assigned_skills.values()))
+        self.status.set("Skills assigned to the next task. Their full text counts toward the prompt limit.")
+
+    def _clear_skills(self):
+        self.assigned_skills.clear()
+        self.assigned_skill_note.set("No shared skills assigned. Choose skills in the Skills tab.")
+
     def _run_task(self):
         page = self.pages["Run task"]
         self._heading(page, "Give a model a specific task", "Choose a discovered model and attach only the files this task needs, within the chosen workspace. The Orchestrator does not silently read a workspace folder.")
@@ -260,7 +418,7 @@ class App(ttk.Frame):
         ttk.Label(caption, textvariable=self.prompt_count, style="Muted.TLabel").pack(side="right")
         self.prompt = self._text(page, height=7)
         self.prompt.bind("<<Modified>>", self._count_prompt)
-        ttk.Label(page, text="Include the outcome, audience, constraints and how the result will be checked. Guardrails and attachments also use the 8,000-character assembled limit.",
+        ttk.Label(page, text="Include the outcome, audience, constraints and how the result will be checked. Guardrails, selected skills and attachments also use the 8,000-character assembled limit.",
                   wraplength=1000, style="Muted.TLabel").pack(anchor="w")
         attach = ttk.Frame(page)
         attach.pack(fill="x", pady=(10, 4))
@@ -269,6 +427,12 @@ class App(ttk.Frame):
         ttk.Button(attach, text="Clear attachments", command=self._clear_attachments).pack(side="left")
         self.attachment_note = tk.StringVar(value="No files attached.")
         ttk.Label(page, textvariable=self.attachment_note, wraplength=1000, style="Muted.TLabel").pack(anchor="w", pady=(3, 10))
+        self.assigned_skill_note = tk.StringVar(value="No shared skills assigned. Choose skills in the Skills tab.")
+        ttk.Label(page, textvariable=self.assigned_skill_note, wraplength=1000).pack(anchor="w", pady=(0, 5))
+        skill_actions = ttk.Frame(page)
+        skill_actions.pack(fill="x", pady=(0, 10))
+        ttk.Button(skill_actions, text="Choose shared skills", command=lambda: self.notebook.select(self.pages["Skills"])).pack(side="left", padx=(0, 8))
+        ttk.Button(skill_actions, text="Clear assigned skills", command=self._clear_skills).pack(side="left")
         self.allow_cloud = tk.BooleanVar(value=False)
         ttk.Checkbutton(page, variable=self.allow_cloud, text="Allow this task to use the configured cloud/API or subscription provider").pack(anchor="w")
         ttk.Label(page, text="Task data leaves this PC. Your own provider account may be charged or use its subscription allowance.",
@@ -418,6 +582,9 @@ class App(ttk.Frame):
         try:
             while True:
                 event, payload = self.events.get_nowait()
+                if event.startswith("skills"):
+                    self._skill_event(event, payload)
+                    continue
                 self.discovering = False
                 self.refresh_button.configure(state="normal")
                 if event == "models":
@@ -591,8 +758,10 @@ class App(ttk.Frame):
         try:
             result = self.hub.submit_task(self.provider.get(), self.model.get(), prompt, self.workspace.get().strip(),
                 lead_id=self.lead_id.get().strip() or "desktop-user", task_kind=self.kind.get(),
-                source_files=list(self.source_files), images=list(self.images), allow_cloud=self.allow_cloud.get())
+                source_files=list(self.source_files), images=list(self.images), allow_cloud=self.allow_cloud.get(),
+                skill_ids=list(self.assigned_skills))
             self.allow_cloud.set(False)
+            self._clear_skills()
             self.status.set(f"Task submitted: {result['id']}")
             self._refresh_tasks()
             self.notebook.select(self.pages["Tasks & review"])
@@ -651,6 +820,8 @@ class App(ttk.Frame):
         if task.get("observed_model"):
             text += f"Provider-observed model: {task['observed_model']}\n"
         text += "\nRequested task\n" + str(task.get("prompt", ""))
+        if task.get("skills"):
+            text += "\n\nAssigned skill snapshots\n" + json.dumps(task["skills"], ensure_ascii=False, indent=2)
         text += "\n\nResult\n" + str(task.get("result_text") or "No output returned yet.")
         if task.get("error"):
             text += "\n\nRun error\n" + str(task["error"])

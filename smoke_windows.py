@@ -30,7 +30,8 @@ def main():
                                 capture_output=True, text=True, timeout=45, check=True)
         replies = {item["id"]: item for item in map(json.loads, result.stdout.splitlines())}
         assert replies[1]["result"]["serverInfo"] == {"name": "local-agent-orchestrator", "version": __version__}
-        assert len(replies[2]["result"]["tools"]) == 9
+        assert len(replies[2]["result"]["tools"]) == 11
+        assert {"list_skills", "read_skill"} <= {tool["name"] for tool in replies[2]["result"]["tools"]}
         config = json.loads(replies[3]["result"]["content"][0]["text"])
         entry = config["mcpServers"]["local-agent-orchestrator"]
         assert Path(entry["command"]).name == "LocalAgentOrchestratorMCP.exe" and entry["args"] == []
@@ -61,7 +62,7 @@ def main():
         # using this disposable profile for the server's own local database.
         with patch.dict(os.environ, env):
             assert check_installed_server(install)['ok']
-    print("PASS: frozen GUI/MCP, nine tools, disposable install, four fresh-profile handshakes, Codex timeout and install-time probe; no inference calls or real profile edits.")
+    print("PASS: frozen GUI/MCP, eleven tools, disposable install, four fresh-profile handshakes, Codex timeout and install-time probe; no inference calls or real profile edits.")
 
 
 if __name__ == "__main__":

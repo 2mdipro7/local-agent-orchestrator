@@ -15,7 +15,7 @@ if trust_data.is_file():
 with (root / "build-mcp.log").open("w", encoding="utf-8") as output:
     subprocess.run(base + ["--console", "--name", "LocalAgentOrchestratorMCP", "--workpath", str(root / "build/mcp"), str(root / "mcp_entry.py")], cwd=root, stdout=output, stderr=subprocess.STDOUT, check=True)
 gui = base + ["--windowed", "--name", "LocalAgentOrchestrator", "--workpath", str(root / "build/gui")]
-for source, destination in [(root / "dist/LocalAgentOrchestratorMCP.exe", "bin")] + [(root / name, "resources") for name in ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md")] + [(root / name, "resources/assets") for name in ("assets/architecture-banner.png", "assets/download-windows.svg", "assets/README.md")]:
+for source, destination in [(root / "dist/LocalAgentOrchestratorMCP.exe", "bin")] + [(root / name, "resources") for name in ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "SHARED-SKILLS.md")] + [(root / name, "resources/assets") for name in ("assets/architecture-banner.png", "assets/download-windows.svg", "assets/README.md")]:
     gui += ["--add-data", str(source) + ";" + destination]
 with (root / "build-gui.log").open("w", encoding="utf-8") as output:
     subprocess.run(gui + [str(root / "app_entry.py")], cwd=root, stdout=output, stderr=subprocess.STDOUT, check=True)
