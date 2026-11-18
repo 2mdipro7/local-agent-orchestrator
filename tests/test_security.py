@@ -156,7 +156,7 @@ class WindowsSecurityTests(unittest.TestCase):
         try:
             os.chdir(launch)
             with patch.dict(os.environ, {'PATH': os.pathsep.join(('', '.', str(launch), str(trusted)))}):
-                self.assertEqual(Path(_find_executable('claude')), trusted / 'claude.exe')
+                self.assertEqual(Path(_find_executable('claude')), (trusted / 'claude.exe').resolve())
             with patch.dict(os.environ, {'PATH': '.'}):
                 self.assertIsNone(_find_executable('claude'))
         finally:
