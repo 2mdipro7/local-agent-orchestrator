@@ -1,5 +1,6 @@
 """Package only explicit public release files; never include profile data."""
 import hashlib
+import argparse
 from pathlib import Path
 import shutil
 import zipfile
@@ -7,16 +8,16 @@ import zipfile
 from agenthub import __version__
 
 
-def main():
+def main(output=None):
     root = Path(__file__).resolve().parent
-    output = root / "release"
+    output = Path(output) if output is not None else root / "release"
     output.mkdir(exist_ok=True)
     prefix = "LocalAgentOrchestrator-v" + __version__
     setup = output / (prefix + "-Setup.exe")
     portable = output / (prefix + "-Portable.zip")
     documents = ["README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt",
                  "TEST-RESULTS.md", "CHANGELOG.md", "AUTHORS.md", "SECURITY.md",
-                 "SECOND-PC-TEST.md", "CONTRIBUTING.md", "SHARED-SKILLS.md", "assets/README.md",
+                 "SECOND-PC-TEST.md", "CONTRIBUTING.md", "SHARED-SKILLS.md", "CODE-SIGNING.md", "PRIVACY.md", "assets/README.md",
                  "assets/architecture-banner.png", "assets/download-windows.svg"]
     payload = [root / "dist/LocalAgentOrchestrator.exe", root / "dist/LocalAgentOrchestratorMCP.exe"]
     payload.extend(root / name for name in documents)
@@ -40,4 +41,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path)
+    main(parser.parse_args().output)

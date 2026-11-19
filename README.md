@@ -84,6 +84,8 @@ Skill text shares the 8,000-character prompt budget with the task and attachment
 
 This is an unsigned Windows x64 preview for attended use. Worker restrictions are application controls, not operating-system isolation. Saved API keys use Windows encryption; prompts, results and history remain local files accessible to your Windows user. Read [SECURITY.md](SECURITY.md) for the data-handling details.
 
+[Code signing policy](CODE-SIGNING.md): preparation for SignPath Foundation is underway; approval and signed downloads are pending. [Privacy policy](PRIVACY.md).
+
 ## Development and documentation
 
 [Build from source and contribute](CONTRIBUTING.md) · [Host connections](HOST-CONNECTIONS.md) · [Validation details](TEST-RESULTS.md) · [Release notes](CHANGELOG.md)

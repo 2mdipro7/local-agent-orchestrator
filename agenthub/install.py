@@ -35,7 +35,7 @@ def install_to(destination=None, *, payload_app=None, payload_worker=None, regis
     worker = Path(payload_worker or resource / "bin" / "LocalAgentOrchestratorMCP.exe").resolve()
     if not app.is_file() or not worker.is_file():
         raise ValueError("Installer payload is incomplete; use the packaged Setup executable")
-    documents = ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "SHARED-SKILLS.md", "assets/README.md", "assets/architecture-banner.png", "assets/download-windows.svg")
+    documents = ("README.md", "HOST-CONNECTIONS.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "SECURITY.md", "CONTRIBUTING.md", "TEST-RESULTS.md", "CHANGELOG.md", "SECOND-PC-TEST.md", "SHARED-SKILLS.md", "CODE-SIGNING.md", "PRIVACY.md", "assets/README.md", "assets/architecture-banner.png", "assets/download-windows.svg")
     # Preflight every destination before changing any installed file.
     for filename in ("LocalAgentOrchestrator.exe", "LocalAgentOrchestratorMCP.exe", "setup-report.json", *documents):
         _check_install_path(target / filename)
@@ -134,7 +134,7 @@ def setup_installation(*, connect=True, progress=lambda message: None):
 def installer_ui():
     root = tk.Tk()
     root.title("Install Local Agent Orchestrator")
-    root.geometry("650x490")
+    root.geometry("650x550")
     root.resizable(False, False)
     frame = ttk.Frame(root, padding=30)
     frame.pack(fill="both", expand=True)
@@ -143,6 +143,7 @@ def installer_ui():
     ttk.Label(frame, text="Connect compatible lead agents to local models, subscribed\nCLI workers and your configured API providers.\n\nNo administrator access, public server or startup entry.\nExternal providers and model weights are not bundled.", justify="left").pack(anchor="w")
     ttk.Label(frame, text="Created by Mehrab Mashrafi (@2mdipro7)").pack(anchor="w", pady=(8, 0))
     ttk.Label(frame, text=str(install_dir()), wraplength=530).pack(anchor="w", pady=18)
+    ttk.Label(frame, text="Setup adds app files, a Start-menu shortcut and an uninstall entry.\nThe option below also updates host MCP settings and keeps backups.\nUninstall retains saved tasks, keys and host settings. See PRIVACY.md.", justify="left").pack(anchor="w", pady=(0, 10))
     connect_hosts = tk.BooleanVar(value=True)
     check = ttk.Checkbutton(frame, text="Configure Claude Desktop, Claude Code, Codex and Antigravity", variable=connect_hosts)
     check.pack(anchor="w")

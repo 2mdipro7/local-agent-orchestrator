@@ -14,12 +14,14 @@ py -3.14 -m venv .venv
 Run checks and build the Windows package:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m pip install --require-hashes --only-binary=:all: -r requirements-build.txt
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe build_windows.py
 .\.venv\Scripts\python.exe smoke_windows.py
 .\.venv\Scripts\python.exe package_release.py
 ```
+
+Release metadata tests use the pinned PyInstaller build tools. For SignPath preparation, see [the maintainer guide](docs/SIGNPATH-APPLICATION.md) and [Code signing policy](CODE-SIGNING.md). `build_windows.py --stage worker` and `--stage app` allow the worker to be signed before embedding. Normal local builds remain unsigned.
 
 `dist/` contains the app and MCP executables. `release/` contains the setup executable, portable ZIP and checksums. The smoke check uses a disposable profile and makes no inference requests. Use `mcp_entry.py` with the virtual environment interpreter for a source MCP connection.
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters><parameter name="version" required="true" /></parameters>
+  <zip-file>
+    <pe-file path="LocalAgentOrchestrator.exe" product-name="Local Agent Orchestrator" product-version="${version}" file-version="${version}" company-name="Mehrab Mashrafi" original-filename="LocalAgentOrchestrator.exe">
+      <authenticode-sign hash-algorithm="sha256" />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

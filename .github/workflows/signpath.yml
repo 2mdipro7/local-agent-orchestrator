@@ -1,0 +1,132 @@
+name: SignPath preparation and signing
+on:
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: Request production signatures (requires Foundation approval and configured account)
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: signpath-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == '2mdipro7/local-agent-orchestrator' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    environment: ${{ inputs.sign && 'signpath-release' || 'signpath-preparation' }}
+    env:
+      SIGNPATH_EXPECTED_SUBJECT: ${{ vars.SIGNPATH_EXPECTED_SUBJECT }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14.10'
+      - name: Check production signing prerequisites
+        if: inputs.sign
+        env:
+          SIGNPATH_ENABLED: ${{ vars.SIGNPATH_ENABLED }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: python check_signing_source.py
+      - name: Install hash-verified build tools
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r requirements-build.txt
+      - name: Test source
+        run: python -m unittest discover -s tests -v
+      - name: Read release version
+        id: version
+        run: |
+          $version = python -c "from agenthub import __version__; print(__version__)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Build worker with version metadata
+        run: python build_windows.py --stage worker
+      - name: Upload worker for origin verification
+        id: worker
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signpath-worker-input-${{ github.run_id }}
+          path: dist/LocalAgentOrchestratorMCP.exe
+          if-no-files-found: error
+          retention-days: 14
+      - name: Request worker signing (manual SignPath approval)
+        if: inputs.sign
+        uses: SignPath/github-action-submit-signing-request@4a84eb4ad763290f059275786f2deed97c2c672b # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: local-agent-orchestrator
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: worker
+          github-artifact-id: ${{ steps.worker.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900
+          output-artifact-directory: signed/worker
+          parameters: |
+            version: ${{ toJSON(steps.version.outputs.version) }}
+      - name: Verify and retain signed worker
+        if: inputs.sign
+        run: |
+          python verify_signing.py --stage worker --file signed/worker/LocalAgentOrchestratorMCP.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item -LiteralPath signed/worker/LocalAgentOrchestratorMCP.exe -Destination dist/LocalAgentOrchestratorMCP.exe
+      - name: Build application embedding that worker
+        run: python build_windows.py --stage app
+      - name: Upload application for origin verification
+        id: app
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signpath-app-input-${{ github.run_id }}
+          path: dist/LocalAgentOrchestrator.exe
+          if-no-files-found: error
+          retention-days: 14
+      - name: Request application signing (manual SignPath approval)
+        if: inputs.sign
+        uses: SignPath/github-action-submit-signing-request@4a84eb4ad763290f059275786f2deed97c2c672b # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: local-agent-orchestrator
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: app
+          github-artifact-id: ${{ steps.app.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900
+          output-artifact-directory: signed/app
+          parameters: |
+            version: ${{ toJSON(steps.version.outputs.version) }}
+      - name: Verify and retain signed application
+        if: inputs.sign
+        run: |
+          python verify_signing.py --stage app --file signed/app/LocalAgentOrchestrator.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item -LiteralPath signed/app/LocalAgentOrchestrator.exe -Destination dist/LocalAgentOrchestrator.exe
+      - name: Package final files and checksums
+        run: python package_release.py
+      - name: Verify signed release and nested payload
+        if: inputs.sign
+        run: python verify_signing.py --stage package
+      - name: Verify unsigned preparation and nested payload
+        if: ${{ !inputs.sign }}
+        run: python verify_signing.py --stage package --unsigned-preparation
+      - name: Smoke test packaged application
+        run: python smoke_windows.py
+      - name: Inventory bundled components
+        run: python signing_inventory.py
+      - name: Upload reviewable outputs (no automatic publication)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signpath-${{ inputs.sign && 'signed-release' || 'unsigned-preparation' }}-${{ github.run_id }}
+          path: |
+            release/*
+            signing-evidence/*
+          if-no-files-found: error
+          retention-days: 14

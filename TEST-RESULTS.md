@@ -4,6 +4,14 @@
 
 Last updated: 18 November 2026 (Asia/Dhaka). Current release: 0.3.2. Earlier sections describe their historical versions; statements that workers were disabled in 0.1.x are superseded by the later results.
 
+## SignPath preparation (19 November 2026; not a signed release)
+
+The build now supports separate worker and application stages with matching Windows product/version metadata. A local preparation build verified both actual EXEs as unsigned, inspected their PE metadata, compared the embedded worker bytes with the standalone worker, checked Setup/GUI equality and portable-package checksums, and passed the frozen GUI/MCP smoke checks. Production signature verification correctly rejected the real unsigned executable. The installed and published v0.3.2 release files were not replaced by these preparation builds.
+
+Targeted regressions cover malformed release versions, preserving the worker between build stages, wrong publisher/product/version, missing timestamp, unsigned/catalog/invalid signature states, tampered embedded worker and release files, absent onboarding settings, untrusted source refs, mismatched tags and already-published versions. Valid-signature cases use synthetic metadata; they do not prove a real certificate was issued or used.
+
+The manual SignPath workflow defaults to unsigned preparation. Production signing requires approved account configuration and a new version tag matching the exact source commit. Provider-side XML validation, certificate issuance, timestamping, signed onefile startup, solo-maintainer eligibility and the Microsoft system-runtime exception remain pending SignPath onboarding. See [the application guide](docs/SIGNPATH-APPLICATION.md).
+
 ## Version 0.3.2 security review (18 November 2026)
 
 On both the original test interpreter and the updated Python 3.14.10 build runtime, the source suite ran **124 tests: 122 passed and two existing Windows symlink tests were skipped** because this account cannot create symbolic links. Hardlink and directory-junction regressions ran. Tests used synthetic data and local fixture servers, without attacking external systems or exposing personal credentials.
